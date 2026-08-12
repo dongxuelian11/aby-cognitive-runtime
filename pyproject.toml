@@ -7,6 +7,7 @@ name = "aby"
 version = "0.1.0"
 description = "ABY Cognitive Runtime — falsifiability-first experimental harness (P0 theory freeze V0.1)"
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
     "pydantic>=2.7",
