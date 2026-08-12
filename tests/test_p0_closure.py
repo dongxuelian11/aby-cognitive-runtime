@@ -42,4 +42,6 @@ def test_cli_status_reports_accepted_not_validated(capsys):
     out = capsys.readouterr().out
     assert "THEORY_FREEZE_ACCEPTED: yes" in out
     assert "SCIENTIFICALLY_VALIDATED: no" in out
-    assert "P1 Experimental Harness: authorized after closure merge; implementation not started" in out
+    # P1.1 started after closure merge; status wording evolves but the
+    # accepted-vs-validated distinction must remain.
+    assert "P1 Experimental Harness: authorized" in out

@@ -8,4 +8,5 @@ dist/
 build/
 .env
 experiments/runs/
+artifacts/
 .DS_Store

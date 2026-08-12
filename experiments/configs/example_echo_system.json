@@ -1,0 +1,19 @@
+{
+  "schema_version": "ABY_EXPERIMENT_CONFIG_V1_0",
+  "experiment_id": "example-echo-system",
+  "seed": 42,
+  "system_id": "echo",
+  "dataset_id": "synthetic",
+  "task_family": "synthetic_dry_run",
+  "difficulty": "trivial",
+  "risk": "none",
+  "episode_limit": 2,
+  "timeout_seconds": 5.0,
+  "model_config_ref": "",
+  "memory_config_ref": "",
+  "tool_config_ref": "",
+  "telemetry_enabled": true,
+  "metadata": {
+    "description": "Offline deterministic echo-system example. No network access, no model calls, no credentials."
+  }
+}

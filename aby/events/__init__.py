@@ -4,8 +4,13 @@ Every episode must be replayable from stored events and configuration.
 P0 §15: event-driven architecture; every episode is replayable from stored
 events and configuration.
 
-The in-memory append/replay implementation here is skeletal but functional;
-a durable backend is a P1 design decision (see docs/design/P1_DESIGN.md).
+P1.1 extensions (minimal, per P1.1 task §7.4):
+- stable per-episode event IDs (``<episode_id>#<seq>``);
+- replay returns deep copies so historical events cannot be mutated;
+- append returns the stored event.
+
+The in-memory implementation remains skeletal but functional; a durable
+backend stays a later design decision (docs/design/P1_DESIGN.md).
 """
 
 from datetime import datetime, timezone
@@ -23,6 +28,11 @@ class Event(BaseModel):
     kind: str
     payload: dict[str, Any] = Field(default_factory=dict)
 
+    @property
+    def event_id(self) -> str:
+        """Stable event identity within the episode."""
+        return f"{self.episode_id}#{self.seq:06d}"
+
 
 class EventLog:
     """Append-only event log, replayable per episode."""
@@ -30,15 +40,20 @@ class EventLog:
     def __init__(self) -> None:
         self._episodes: dict[str, list[Event]] = {}
 
-    def append(self, event: Event) -> None:
+    def append(self, event: Event) -> Event:
         """Append an event, assigning the next sequence number for its episode."""
         per_episode = self._episodes.setdefault(event.episode_id, [])
         event.seq = len(per_episode) + 1
         per_episode.append(event)
+        return event
 
     def replay(self, episode_id: str) -> list[Event]:
-        """Return the events of one episode in order (replayability, P0 §15)."""
-        return list(self._episodes.get(episode_id, []))
+        """Return the events of one episode in order (P0 §15).
+
+        Returns deep copies: historical events can never be mutated
+        through replay handles.
+        """
+        return [e.model_copy(deep=True) for e in self._episodes.get(episode_id, [])]
 
     def to_json(self) -> list[dict[str, Any]]:
         """Serialize all episodes to a JSON-compatible list for persistence."""
