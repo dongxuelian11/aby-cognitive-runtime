@@ -10,6 +10,10 @@ Layout (P1.1 task §7.6):
         provenance.json  — exact code/config binding metadata
 
 Generated artifacts are Git-ignored (``artifacts/``).
+
+Path containment (P1.1 correction D): every identifier used to build an
+artifact path must match the safe-identifier pattern, and the resolved
+directory must stay inside ``<artifacts_root>/experiments/``.
 """
 
 import json
@@ -17,13 +21,26 @@ from pathlib import Path
 
 from ..contracts.telemetry import TelemetryRecord
 from ..events import Event
-from ..experiments.config import ExperimentConfig
+from ..experiments.config import ExperimentConfig, validate_safe_identifier
 from ..experiments.provenance import build_provenance
 from ..experiments.system import EpisodeResult
 
 
 def episode_artifact_dir(artifacts_root: str | Path, experiment_id: str, episode_id: str) -> Path:
-    return Path(artifacts_root) / "experiments" / experiment_id / episode_id
+    """Resolve the artifact directory for one episode, enforcing containment.
+
+    Raises ValueError for unsafe identifiers or any path that would resolve
+    outside ``<artifacts_root>/experiments/``.
+    """
+    validate_safe_identifier(experiment_id, field="experiment_id")
+    validate_safe_identifier(episode_id, field="episode_id")
+    base = (Path(artifacts_root) / "experiments").resolve()
+    directory = (base / experiment_id / episode_id).resolve()
+    if not directory.is_relative_to(base):
+        raise ValueError(
+            f"artifact path {directory} escapes the artifact root {base}"
+        )
+    return directory
 
 
 def write_episode_artifacts(

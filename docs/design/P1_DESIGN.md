@@ -63,6 +63,29 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    `aby experiment dry-run <config>` (offline deterministic only; unknown
    system_id fails closed). `aby run` remains reserved for later P1 stages.
 
+## P1.1 corrections (PR #2, independent review round 2)
+
+1. **Timeout cancellation model** — soft timeout with non-blocking executor
+   shutdown: on timeout the episode is `TIMED_OUT` and the runner returns
+   promptly; the detached worker may finish in the background but its late
+   result is discarded and can never mutate the committed record, event log,
+   or artifacts. Python threads cannot be hard-killed; this model is honest
+   about that (no fake "hard cancellation").
+2. **EventLog immutability guarantee** — strict immutable boundary:
+   `append` deep-copies the incoming event and returns an independent deep
+   copy; `replay` returns deep copies. Caller-owned objects, return values,
+   and nested payloads can never mutate stored history.
+3. **Provenance source-binding states** — `source_binding` ∈
+   {`EXACT_CLEAN_COMMIT`, `NON_EXACT_DIRTY`, `UNAVAILABLE`} with explicit
+   `worktree_state` ∈ {CLEAN, DIRTY, UNKNOWN}; dirty tracked worktrees also
+   record `tracked_diff_sha256`. Untracked policy (conservative): any
+   untracked non-ignored file ⇒ DIRTY; git-ignored generated artifacts
+   (e.g. `artifacts/`, `.pytest_cache/`) do not affect exactness.
+4. **Artifact identifier/path containment** — `experiment_id` and `episode_id`
+   must match `[A-Za-z0-9._-]+` (never empty, `.`, or `..`); artifact
+   directories are additionally containment-checked to resolve strictly
+   inside `<artifacts_root>/experiments/`.
+
 ## Still open for later P1 stages
 
 - MoA baseline (S2) aggregation scheme.

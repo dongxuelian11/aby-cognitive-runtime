@@ -5,6 +5,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from aby.events import EventLog
 from aby.experiments import (
     EXPERIMENT_CONFIG_SCHEMA_VERSION,
@@ -104,7 +106,9 @@ def test_artifacts_contain_no_secret_material(tmp_path):
 # --- provenance --------------------------------------------------------------
 
 
-def test_provenance_binds_exact_repo_commit(tmp_path):
+def test_provenance_binds_repo_commit_and_propagates_git_state(tmp_path):
+    from aby.experiments import provenance as prov
+
     config = _make_config("echo", experiment_id="prov-exp")
     run_experiment(config, EchoSystem(), artifacts_root=tmp_path)
     directory = episode_artifact_dir(tmp_path, config.experiment_id, "prov-exp-ep0001")
@@ -113,6 +117,121 @@ def test_provenance_binds_exact_repo_commit(tmp_path):
         ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True
     ).stdout.strip()
     assert provenance["repo_commit"] == head
+    # The artifact must reflect the real, current binding state exactly.
+    expected = prov.get_git_state()
+    assert provenance["source_binding"] == expected.source_binding
+    assert provenance["worktree_state"] == expected.worktree_state
+
+
+def test_provenance_clean_commit_state_is_labeled_exact(tmp_path, monkeypatch):
+    from aby.experiments import provenance as prov
+
+    clean = prov.GitState(
+        repo_commit="f5ada87eb65f29bf6a4e798160ed562cde7e84c2",
+        worktree_state="CLEAN",
+        source_binding="EXACT_CLEAN_COMMIT",
+    )
+    monkeypatch.setattr(prov, "get_git_state", lambda: clean)
+
+    config = _make_config("echo", experiment_id="clean-exp")
+    run_experiment(config, EchoSystem(), artifacts_root=tmp_path)
+    directory = episode_artifact_dir(tmp_path, config.experiment_id, "clean-exp-ep0001")
+    provenance = json.loads((directory / "provenance.json").read_text(encoding="utf-8"))
+    assert provenance["source_binding"] == "EXACT_CLEAN_COMMIT"
+    assert provenance["worktree_state"] == "CLEAN"
+    assert provenance["repo_commit"] == "f5ada87eb65f29bf6a4e798160ed562cde7e84c2"
+
+
+def test_provenance_dirty_worktree_is_non_exact(tmp_path, monkeypatch):
+    from aby.experiments import provenance as prov
+
+    fake = prov.GitState(
+        repo_commit="abc123def456",
+        worktree_state="DIRTY",
+        source_binding="NON_EXACT_DIRTY",
+        tracked_diff_sha256="deadbeef",
+    )
+    monkeypatch.setattr(prov, "get_git_state", lambda: fake)
+
+    config = _make_config("echo", experiment_id="dirty-exp")
+    run_experiment(config, EchoSystem(), artifacts_root=tmp_path)
+    directory = episode_artifact_dir(tmp_path, config.experiment_id, "dirty-exp-ep0001")
+    provenance = json.loads((directory / "provenance.json").read_text(encoding="utf-8"))
+    assert provenance["repo_commit"] == "abc123def456"
+    assert provenance["source_binding"] == "NON_EXACT_DIRTY"
+    assert provenance["worktree_state"] == "DIRTY"
+    assert provenance["tracked_diff_sha256"] == "deadbeef"
+    # Normal fields remain intact.
+    for field in ("experiment_schema_version", "system_id", "seed", "config_sha256"):
+        assert field in provenance
+
+
+def test_provenance_not_a_git_repo_is_unavailable(tmp_path):
+    from aby.experiments import provenance as prov
+
+    state = prov.get_git_state(cwd=tmp_path)  # pytest tmp dir has no .git
+    assert state.source_binding == "UNAVAILABLE"
+    assert state.worktree_state == "UNKNOWN"
+    assert state.repo_commit == ""
+
+
+def test_provenance_git_unavailable_is_explicit(monkeypatch):
+    from aby.experiments import provenance as prov
+
+    def _git_missing(*args, **kwargs):
+        raise FileNotFoundError("git not installed")
+
+    monkeypatch.setattr(prov.subprocess, "run", _git_missing)
+    state = prov.get_git_state()
+    assert state.source_binding == "UNAVAILABLE"
+    assert state.worktree_state == "UNKNOWN"
+    assert state.repo_commit == ""
+
+
+# --- artifact path containment (correction D) --------------------------------
+
+
+def test_artifact_dir_rejects_path_traversal_ids(tmp_path):
+    for experiment_id in ("../escape", "a/b"):
+        with pytest.raises(ValueError):
+            episode_artifact_dir(tmp_path, experiment_id, "ep0001")
+    for episode_id in ("..\\escape", "a\\b", "/absolute"):
+        with pytest.raises(ValueError):
+            episode_artifact_dir(tmp_path, "exp", episode_id)
+
+
+def test_artifact_dir_resolves_under_experiments_root(tmp_path):
+    directory = episode_artifact_dir(tmp_path, "exp-1.0_test", "ep0001")
+    base = (Path(tmp_path) / "experiments").resolve()
+    assert directory.is_relative_to(base)
+
+
+def test_config_rejects_unsafe_experiment_ids():
+    from pydantic import ValidationError
+
+    for bad in ("../escape", "..\\escape", "a/b", "a\\b", "/absolute", "..", ""):
+        with pytest.raises(ValidationError):
+            ExperimentConfig(
+                schema_version=EXPERIMENT_CONFIG_SCHEMA_VERSION,
+                experiment_id=bad,
+                seed=1,
+                system_id="echo",
+                dataset_id="synthetic",
+                task_family="unit_test",
+            )
+
+
+def test_config_accepts_valid_identifier_shapes():
+    for good in ("exp-1.0_test", "plain", "UPPER_42"):
+        config = ExperimentConfig(
+            schema_version=EXPERIMENT_CONFIG_SCHEMA_VERSION,
+            experiment_id=good,
+            seed=1,
+            system_id="echo",
+            dataset_id="synthetic",
+            task_family="unit_test",
+        )
+        assert config.experiment_id == good
 
 
 def test_provenance_has_required_fields_and_config_hash(tmp_path):

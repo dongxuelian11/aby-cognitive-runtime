@@ -4,10 +4,14 @@ Every episode must be replayable from stored events and configuration.
 P0 §15: event-driven architecture; every episode is replayable from stored
 events and configuration.
 
-P1.1 extensions (minimal, per P1.1 task §7.4):
+P1.1 extensions (per P1.1 task §7.4 and correction B):
+
 - stable per-episode event IDs (``<episode_id>#<seq>``);
-- replay returns deep copies so historical events cannot be mutated;
-- append returns the stored event.
+- **strict immutable boundary**: ``append`` stores a deep copy of the caller's
+  event and returns an independent deep copy; ``replay`` returns deep copies.
+  No caller-owned or internal mutable object can ever mutate stored history,
+  including nested payloads;
+- append returns the stored event (copy) for convenience.
 
 The in-memory implementation remains skeletal but functional; a durable
 backend stays a later design decision (docs/design/P1_DESIGN.md).
@@ -35,17 +39,22 @@ class Event(BaseModel):
 
 
 class EventLog:
-    """Append-only event log, replayable per episode."""
+    """Append-only event log with a strict immutable boundary."""
 
     def __init__(self) -> None:
         self._episodes: dict[str, list[Event]] = {}
 
     def append(self, event: Event) -> Event:
-        """Append an event, assigning the next sequence number for its episode."""
-        per_episode = self._episodes.setdefault(event.episode_id, [])
-        event.seq = len(per_episode) + 1
-        per_episode.append(event)
-        return event
+        """Append an independent deep copy, assigning the next sequence number.
+
+        The caller's original object is never retained, and the returned
+        copy is detached from internal storage: neither can mutate history.
+        """
+        stored = event.model_copy(deep=True)
+        per_episode = self._episodes.setdefault(stored.episode_id, [])
+        stored.seq = len(per_episode) + 1
+        per_episode.append(stored)
+        return stored.model_copy(deep=True)
 
     def replay(self, episode_id: str) -> list[Event]:
         """Return the events of one episode in order (P0 §15).

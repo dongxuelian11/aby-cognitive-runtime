@@ -6,7 +6,16 @@ timeout and records a complete, replayable lifecycle event sequence.
 
 Lifecycle (P1.1 task §7.3): CREATED -> STARTED -> COMPLETED | FAILED | TIMED_OUT.
 
-No automatic retries in P1.1; retry policy requires explicit future design.
+Timeout model (P1.1 correction A — soft timeout, honest and bounded):
+- the runner waits at most ``timeout_seconds`` for the system;
+- on timeout the episode is marked ``TIMED_OUT`` and the runner returns
+  promptly using non-blocking executor shutdown (it never waits for a
+  non-cooperative worker to finish);
+- Python threads cannot be hard-killed; the detached worker thread may
+  continue in the background, but its late return value is discarded and
+  can never mutate the committed episode record, event log, or artifacts;
+- there is no automatic retry in P1.1; retry policy requires explicit
+  future design.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -77,16 +86,21 @@ class EpisodeRunner:
         event_log.append(Event(episode_id=episode_input.episode_id, kind="episode_started", payload={}))
 
         result: EpisodeResult | None = None
-        with ThreadPoolExecutor(max_workers=1) as pool:
+        pool = ThreadPoolExecutor(max_workers=1)
+        try:
             future = pool.submit(system.run_episode, episode_input)
-            try:
-                result = future.result(timeout=timeout_seconds)
-            except FutureTimeoutError:
-                record.status = EpisodeStatus.TIMED_OUT
-                record.error = f"timeout exceeded ({timeout_seconds}s)"
-            except Exception as exc:  # noqa: BLE001 — every failure becomes evidence
-                record.status = EpisodeStatus.FAILED
-                record.error = f"{type(exc).__name__}: {exc}"
+            result = future.result(timeout=timeout_seconds)
+        except FutureTimeoutError:
+            record.status = EpisodeStatus.TIMED_OUT
+            record.error = f"timeout exceeded ({timeout_seconds}s)"
+        except Exception as exc:  # noqa: BLE001 — every failure becomes evidence
+            record.status = EpisodeStatus.FAILED
+            record.error = f"{type(exc).__name__}: {exc}"
+        finally:
+            # Soft-timeout model: never block on a non-cooperative worker.
+            # cancel_futures affects only not-yet-started work; a running
+            # worker continues detached and its late result is discarded.
+            pool.shutdown(wait=False, cancel_futures=True)
 
         if record.status in (EpisodeStatus.STARTED, EpisodeStatus.CREATED):
             # The system returned normally; classify its normalized result.

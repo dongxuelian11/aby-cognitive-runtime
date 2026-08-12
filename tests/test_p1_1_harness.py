@@ -135,16 +135,48 @@ def test_episode_lifecycle_failure_captures_exception():
 
 class _SlowSystem:
     def run_episode(self, episode_input):
-        time.sleep(0.5)
+        time.sleep(0.6)
         return None
 
 
-def test_episode_timeout_is_bounded():
+class _LateSuccessSystem:
+    """Returns a valid result only after the timeout would have fired."""
+
+    def run_episode(self, episode_input):
+        time.sleep(0.4)
+        return EpisodeResult(output="late", status="SUCCEEDED")
+
+
+def test_episode_timeout_returns_promptly_within_wall_clock():
+    # Correction A regression: the runner must not wait for the worker's
+    # full 0.6s duration after a 0.05s timeout.
     log = EventLog()
+    start = time.monotonic()
     record = EpisodeRunner().run(_SlowSystem(), _make_input(), timeout_seconds=0.05, event_log=log)
+    elapsed = time.monotonic() - start
     assert record.status == EpisodeStatus.TIMED_OUT
     assert "timeout" in record.error
-    assert log.replay("test-exp-ep0001")[-1].kind == "episode_timed_out"
+    assert elapsed < 0.35, f"runner returned after {elapsed:.3f}s — not bounded"
+    kinds = [e.kind for e in log.replay("test-exp-ep0001")]
+    assert kinds[-1] == "episode_timed_out"
+    assert "episode_completed" not in kinds  # no false COMPLETED event
+
+
+def test_timeout_result_cannot_be_overwritten_by_late_worker():
+    # Correction A: the detached late worker's result must never mutate
+    # the committed episode record or event log.
+    log = EventLog()
+    record = EpisodeRunner().run(
+        _LateSuccessSystem(), _make_input(), timeout_seconds=0.05, event_log=log
+    )
+    assert record.status == EpisodeStatus.TIMED_OUT
+    assert record.result is None
+    events_before = [e.model_dump() for e in log.replay("test-exp-ep0001")]
+    time.sleep(0.5)  # allow the detached worker to finish
+    assert record.status == EpisodeStatus.TIMED_OUT
+    assert record.result is None
+    events_after = [e.model_dump() for e in log.replay("test-exp-ep0001")]
+    assert events_after == events_before
 
 
 def test_runner_emits_tool_and_rework_events_before_terminal():
@@ -177,11 +209,52 @@ def test_event_append_replay_ordering_and_stable_ids():
 
 
 def test_replay_cannot_mutate_historical_events():
+    # Correction B: replay returns safe copies, including nested payloads.
     log = EventLog()
-    log.append(Event(episode_id="e1", kind="a", payload={"n": 1}))
+    log.append(Event(episode_id="e1", kind="a", payload={"n": 1, "nested": {"x": 1}}))
     mutated = log.replay("e1")
     mutated[0].payload["n"] = 999
-    assert log.replay("e1")[0].payload["n"] == 1
+    mutated[0].payload["nested"]["x"] = 999
+    mutated[0].kind = "mutated"
+    replayed = log.replay("e1")[0]
+    assert replayed.kind == "a"
+    assert replayed.payload["n"] == 1
+    assert replayed.payload["nested"]["x"] == 1
+
+
+def test_append_input_object_cannot_mutate_history():
+    # Correction B: the caller's original object must not be retained.
+    log = EventLog()
+    original = Event(episode_id="e1", kind="a", payload={"nested": {"x": 1}})
+    log.append(original)
+    original.kind = "mutated"
+    original.payload["nested"]["x"] = 999
+    original.seq = 42
+    replayed = log.replay("e1")[0]
+    assert replayed.kind == "a"
+    assert replayed.seq == 1
+    assert replayed.payload["nested"]["x"] == 1
+
+
+def test_append_return_object_cannot_mutate_history():
+    # Correction B: the return value must not expose internal storage.
+    log = EventLog()
+    returned = log.append(Event(episode_id="e1", kind="a", payload={"nested": {"x": 1}}))
+    returned.kind = "mutated"
+    returned.payload["nested"]["x"] = 999
+    returned.seq = 42
+    replayed = log.replay("e1")[0]
+    assert replayed.kind == "a"
+    assert replayed.seq == 1
+    assert replayed.payload["nested"]["x"] == 1
+
+
+def test_append_return_keeps_assigned_seq_while_history_order_stays_deterministic():
+    log = EventLog()
+    first = log.append(Event(episode_id="e1", kind="a"))
+    second = log.append(Event(episode_id="e1", kind="b"))
+    assert first.seq == 1 and second.seq == 2
+    assert [e.seq for e in log.replay("e1")] == [1, 2]
 
 
 def test_event_log_json_roundtrip_preserves_order():
