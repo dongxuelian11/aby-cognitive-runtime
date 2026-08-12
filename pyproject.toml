@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aby"
+version = "0.1.0"
+description = "ABY Cognitive Runtime — falsifiability-first experimental harness (P0 theory freeze V0.1)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[project.scripts]
+aby = "aby.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aby*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

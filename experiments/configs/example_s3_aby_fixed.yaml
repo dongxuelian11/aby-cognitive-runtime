@@ -1,0 +1,33 @@
+# Example experiment config — S3 ABY Fixed (illustrative skeleton)
+
+# NOT FROZEN: this config schema is a P1 draft. See docs/design/P1_DESIGN.md.
+# Frozen requirements it must eventually satisfy:
+#   - qA + qB + qY = 1 (P0 §4.3)
+#   - fairness rules (P0 §10): same dataset/tools/memory budget, recorded budget/latency/cost
+#   - every episode replayable from stored events + configuration (P0 §15)
+
+experiment:
+  name: example_s3_aby_fixed
+  baseline: S3            # S0 | S1 | S2 | S3 | S4 (S4 reserved for P5)
+  task_family: TBD
+  difficulty: TBD
+  risk: TBD
+  dataset: experiments/datasets/TBD
+  seed: 0
+
+compute:                  # P0 §4.3: qA + qB + qY = 1
+  qA: 0.25
+  qB: 0.60
+  qY: 0.15
+
+models:                   # P0 §15: lanes may use different providers
+  A: { provider: TBD, model: TBD }
+  B: { provider: TBD, model: TBD }
+  Y: { provider: TBD, model: TBD }
+
+memory:                   # P0 §14: episode store, structured facts, keyword retrieval
+  backend: keyword        # embedding retrieval is optional/deferred
+  retrieval_k: 5
+
+telemetry:
+  schema: ABY_RUNTIME_TELEMETRY_V0.1
