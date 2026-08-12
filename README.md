@@ -10,9 +10,18 @@ ABY tests whether separating cognition into three heterogeneous lanes — **A** 
 
 | Phase | Content | Status |
 | ----- | ------- | ------ |
-| P0 | Theory freeze V0.1 | Archived 2026-08-13 · acceptance pending |
-| P1 | Experimental harness | Skeleton only · blocked on P0 acceptance |
+| P0 | Theory freeze V0.1 | Archived 2026-08-13 · ACCEPTED (15/15, independent exact-source review PASS) |
+| P1 | Experimental harness | Authorized after P0 closure merge · not started |
 | P2–P5 | (to be defined later) | — |
+
+Status distinctions:
+
+```text
+P0 Theory Freeze V0.1:      ACCEPTED (authoritative P0 baseline)
+P0 scientific hypotheses:   UNVALIDATED / EXPERIMENTAL (H1–H6 untested)
+P1 Experimental Harness:    AUTHORIZED AFTER MERGE of the P0 closure
+License:                    Apache-2.0
+```
 
 ## Key concepts
 
@@ -57,7 +66,8 @@ aby status
 
 ## Rules of the game
 
-- No implementation before P0 acceptance (P0 §16). The acceptance tracker lives in `docs/p0/P0_ACCEPTANCE_TRACKER.md`.
+- P0 V0.1 is ACCEPTED (2026-08-13): 15/15 freeze items accepted after independent exact-source review of `e3eeae345e5e86cf5bcec6349991bd4c1fbb04ed`; the tracker lives in `docs/p0/P0_ACCEPTANCE_TRACKER.md`. P1 implementation is authorized only after the P0 closure PR is merged.
+- The P0 hypotheses (H1–H6) remain unvalidated and experimental; acceptance of the freeze is not scientific validation.
 - Frozen contracts live in `aby/contracts/`; changes require a new P0 version + changelog entry.
 - Event-weight changes require a new telemetry schema version (P0 §7.2).
 - Every episode must be replayable from stored events and configuration (P0 §15).
@@ -69,4 +79,4 @@ aby status
 - P1 design draft with open questions: `docs/design/P1_DESIGN.md`
 - Research log: `docs/research/RESEARCH_LOG.md`
 
-License: TBD (all rights reserved until chosen).
+License: [Apache License 2.0](LICENSE).

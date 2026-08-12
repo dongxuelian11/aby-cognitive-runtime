@@ -19,8 +19,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         print("ABY Cognitive Runtime — P0 freeze V0.1")
         print("Archived: 2026-08-13")
-        print("Acceptance: PENDING (docs/p0/P0_ACCEPTANCE_TRACKER.md)")
-        print("P1 harness: skeleton only — no implementation before acceptance.")
+        print("Acceptance: ACCEPTED (15/15; independent exact-source review of e3eeae345e5e86cf5bcec6349991bd4c1fbb04ed)")
+        print("THEORY_FREEZE_ACCEPTED: yes")
+        print("SCIENTIFICALLY_VALIDATED: no (hypotheses H1-H6 unvalidated / experimental)")
+        print("P1 Experimental Harness: authorized after closure merge; implementation not started")
         return 0
 
     if args.command == "run":
