@@ -85,7 +85,11 @@ def write_semantic_geometry_artifacts(
             }
         ),
         "semantic_matches.json": _canonical_bytes(
-            {"matches": [match.model_dump(mode="json") for match in bundle.matches]}
+            {
+                "matcher_version": bundle.matcher_version,
+                "matches_per_source": bundle.matches_per_source,
+                "matches": [match.model_dump(mode="json") for match in bundle.matches],
+            }
         ),
     }
     hashes = {
@@ -95,10 +99,13 @@ def write_semantic_geometry_artifacts(
     manifest = {
         "bundle_schema_version": bundle.bundle_schema_version,
         "atom_schema_version": bundle.atom_schema_version,
+        "atomizer_version": bundle.atomizer_version,
         "encoder": bundle.encoder.model_dump(mode="json"),
         "metric_version": bundle.metric_version,
         "atlas_version": bundle.atlas_version,
+        "matcher_version": bundle.matcher_version,
         "k": bundle.k,
+        "matches_per_source": bundle.matches_per_source,
         "bundle_fingerprint": bundle.bundle_fingerprint,
         "artifact_file_sha256": hashes,
     }

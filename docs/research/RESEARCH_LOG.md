@@ -42,3 +42,20 @@ Decision: accept / reject / continue / modify
   contracts remain outside the write set.
 - Scientific result: `NOT_RUN`. This candidate creates a coordinate/evidence
   substrate only; it does not test ABY effectiveness or superiority.
+
+## 2026-08-13 — P1.5 PR #8 bounded semantic/locality correction candidate
+
+- Corrected Y `recommended_resolution_targets` to the non-executable
+  `DISSIPATION_TARGET` atom type. Y emits no `INTENT` or `ACTION`; frozen P0
+  fields remain unchanged and `estimated_y` remains outside geometry.
+- Corrected cross-lane matching to require a forward or reverse directed local
+  kNN atlas edge. Reverse-only adjacency is eligible; absence of both directions
+  yields no candidate and no global fallback.
+- Bound `frame-atomizer-v0.1`, `atlas-local-cross-lane-v0.1`, and
+  `matches_per_source` into bundle fingerprints and artifact manifests.
+- Added relational integrity validation distinct from self-hashing: atom/point
+  identities, encoder provenance, canonical atlas evidence, endpoint lanes, and
+  atlas-local matches must be internally consistent.
+- This is an engineering correction to an unaccepted candidate, not scientific
+  validation. Y costs, geodesic resolution, live lanes, P1.6, and S3 remain
+  unimplemented.

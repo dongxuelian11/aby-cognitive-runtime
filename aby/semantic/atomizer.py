@@ -7,9 +7,13 @@ from collections.abc import Iterable
 from ..contracts.frames import ActionFrame, DissipationFrame, MacroFrame
 from .ir import SemanticAtom, SemanticAtomType, SourceLane
 
+FRAME_ATOMIZER_VERSION = "frame-atomizer-v0.1"
+
 
 class FrameAtomizer:
     """Explicitly map frozen frame fields without reinterpreting P0 schemas."""
+
+    version = FRAME_ATOMIZER_VERSION
 
     MACRO_FIELDS = (
         ("macro_state", SemanticAtomType.FACT),
@@ -35,7 +39,9 @@ class FrameAtomizer:
         ("rework_risk", SemanticAtomType.UNCERTAINTY),
         ("context_drift", SemanticAtomType.UNCERTAINTY),
         ("unresolved_tension", SemanticAtomType.UNCERTAINTY),
-        ("recommended_resolution_targets", SemanticAtomType.INTENT),
+        # Non-executable Y-origin examination/resolution focus.  This is not
+        # B intent, an action proposal, or a Resolver decision.
+        ("recommended_resolution_targets", SemanticAtomType.DISSIPATION_TARGET),
     )
 
     @staticmethod
@@ -129,6 +135,11 @@ class FrameAtomizer:
                     confidence=frame.confidence,
                 )
             )
+        if any(
+            atom.atom_type in (SemanticAtomType.INTENT, SemanticAtomType.ACTION)
+            for atom in atoms
+        ):
+            raise ValueError("Y-origin atoms must not be classified as INTENT/ACTION")
         return atoms
 
     def atomize(
@@ -144,4 +155,4 @@ class FrameAtomizer:
         )
 
 
-__all__ = ["FrameAtomizer"]
+__all__ = ["FRAME_ATOMIZER_VERSION", "FrameAtomizer"]

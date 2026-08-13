@@ -42,14 +42,44 @@ def test_explicit_frame_field_mapping_preserves_provenance_and_confidence(monkey
     assert by_key[(SourceLane.B, "tool_requests")].atom_type is SemanticAtomType.ACTION
     assert by_key[(SourceLane.Y, "conflicts")].atom_type is SemanticAtomType.CLAIM
     assert by_key[(SourceLane.Y, "goal_drift")].atom_type is SemanticAtomType.UNCERTAINTY
-    assert by_key[(SourceLane.Y, "recommended_resolution_targets")].atom_type is SemanticAtomType.INTENT
+    target = by_key[(SourceLane.Y, "recommended_resolution_targets")]
+    assert target.atom_type is SemanticAtomType.DISSIPATION_TARGET
+    assert target.source_lane is SourceLane.Y
+    assert target.source_field == "recommended_resolution_targets"
     assert by_key[(SourceLane.A, "macro_state")].evidence_refs == ("a-ref",)
     assert by_key[(SourceLane.B, "local_plan")].evidence_refs == ("b-ref",)
     assert by_key[(SourceLane.Y, "conflicts")].evidence_refs == ()
     assert by_key[(SourceLane.A, "macro_state")].confidence == 0.8
     assert by_key[(SourceLane.Y, "conflicts")].confidence == 0.6
     assert "estimated_y" not in {atom.source_field for atom in atoms}
+    assert not any(
+        atom.source_lane is SourceLane.Y
+        and atom.atom_type in (SemanticAtomType.INTENT, SemanticAtomType.ACTION)
+        for atom in atoms
+    )
     assert not hasattr(FrameAtomizer(), "provider")
+
+
+def test_dissipation_atomizer_never_emits_intent_or_action_and_preserves_targets():
+    atoms = FrameAtomizer().atomize_dissipation(
+        DissipationFrame(
+            conflicts=["conflict"],
+            recommended_resolution_targets=["inspect this boundary"],
+            estimated_y=0.4,
+        )
+    )
+    target = next(
+        atom for atom in atoms
+        if atom.source_field == "recommended_resolution_targets"
+    )
+    assert target.content == "inspect this boundary"
+    assert target.source_lane is SourceLane.Y
+    assert target.atom_type is SemanticAtomType.DISSIPATION_TARGET
+    assert all(
+        atom.atom_type not in (SemanticAtomType.INTENT, SemanticAtomType.ACTION)
+        for atom in atoms
+    )
+    assert "estimated_y" not in {atom.source_field for atom in atoms}
 
 
 def test_atomizer_preserves_duplicate_source_positions():

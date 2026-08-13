@@ -27,6 +27,7 @@ class SemanticAtomType(str, Enum):
     ACTION = "ACTION"
     EVIDENCE = "EVIDENCE"
     UNCERTAINTY = "UNCERTAINTY"
+    DISSIPATION_TARGET = "DISSIPATION_TARGET"
 
 
 class SourceLane(str, Enum):

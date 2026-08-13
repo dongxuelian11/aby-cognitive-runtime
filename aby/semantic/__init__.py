@@ -13,7 +13,7 @@ from .atlas import (
     SemanticAtlasEdge,
     build_directed_knn_atlas,
 )
-from .atomizer import FrameAtomizer
+from .atomizer import FRAME_ATOMIZER_VERSION, FrameAtomizer
 from .bundle import (
     SEMANTIC_GEOMETRY_BUNDLE_SCHEMA_VERSION,
     SemanticGeometryBundle,
@@ -44,5 +44,6 @@ from .ir import (
     semantic_atom_id,
 )
 from .matcher import SemanticMatchCandidate, match_cross_lane_candidates
+from .matcher import SEMANTIC_MATCHER_VERSION
 
 __all__ = [name for name in globals() if not name.startswith("_")]

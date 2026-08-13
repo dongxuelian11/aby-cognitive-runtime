@@ -26,6 +26,7 @@ def test_required_atom_types_and_source_lanes_are_explicit():
     assert {item.value for item in SemanticAtomType} >= {
         "GOAL", "CONSTRAINT", "FACT", "CLAIM", "ENTITY", "RELATION",
         "INTENT", "ACTION", "EVIDENCE", "UNCERTAINTY",
+        "DISSIPATION_TARGET",
     }
     assert {item.value for item in SourceLane} == {"A", "B", "Y", "EXTERNAL"}
     assert SEMANTIC_ATOM_SCHEMA_VERSION == "p1.5-v0.1"

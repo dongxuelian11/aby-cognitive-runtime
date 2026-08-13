@@ -8,6 +8,7 @@ from .encoder import DeterministicHashingEncoder
 
 REFERENCE_FIXTURE_ENCODER_DIMENSION = 32
 REFERENCE_FIXTURE_ATLAS_K = 3
+REFERENCE_FIXTURE_MATCHES_PER_SOURCE = 2
 
 
 def reference_frames() -> tuple[MacroFrame, ActionFrame, DissipationFrame]:
@@ -59,13 +60,14 @@ def build_reference_fixture_bundle() -> SemanticGeometryBundle:
             dimension=REFERENCE_FIXTURE_ENCODER_DIMENSION
         ),
         k=REFERENCE_FIXTURE_ATLAS_K,
-        matches_per_source=2,
+        matches_per_source=REFERENCE_FIXTURE_MATCHES_PER_SOURCE,
     )
 
 
 __all__ = [
     "REFERENCE_FIXTURE_ENCODER_DIMENSION",
     "REFERENCE_FIXTURE_ATLAS_K",
+    "REFERENCE_FIXTURE_MATCHES_PER_SOURCE",
     "reference_frames",
     "build_reference_fixture_bundle",
 ]

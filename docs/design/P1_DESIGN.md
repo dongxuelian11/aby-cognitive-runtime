@@ -259,17 +259,20 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    source index, frame evidence references where present, and confidence.
 2. **Semantic IR V0.1** — `SEMANTIC_ATOM_SCHEMA_VERSION = "p1.5-v0.1"`;
    required types are `GOAL`, `CONSTRAINT`, `FACT`, `CLAIM`, `ENTITY`,
-   `RELATION`, `INTENT`, `ACTION`, `EVIDENCE`, and `UNCERTAINTY`. Atom identity
-   is a SHA-256 binding over the versioned semantic content and provenance;
-   duplicate values at different source positions remain distinct.
+   `RELATION`, `INTENT`, `ACTION`, `EVIDENCE`, `UNCERTAINTY`, and the Y-specific
+   `DISSIPATION_TARGET`. Atom identity is a SHA-256 binding over the versioned
+   semantic content and provenance; duplicate values at different source
+   positions remain distinct.
 3. **Explicit field semantics** — A macro state is a `FACT`, relevant history
    is `EVIDENCE`, constraints/goals retain their named types, interpretations
    are `CLAIM`, and continuity risk is `UNCERTAINTY`. B intent is `INTENT`,
    plans/actions/tool requests are `ACTION`, expected result is `CLAIM`, and
    local uncertainty remains `UNCERTAINTY`. Y conflict/mismatch fields are
    candidate `CLAIM` evidence; drift/risk/tension fields are `UNCERTAINTY`;
-   resolution targets are `INTENT`. `estimated_y` is deliberately not
-   atomized and never changes geometry in P1.5.
+   resolution targets are non-executable `DISSIPATION_TARGET` indications of
+   where dissipation should be examined. No Y-origin atom is `INTENT` or
+   `ACTION`. `estimated_y` is deliberately not atomized and never changes
+   geometry in P1.5.
 4. **Shared encoder contract** — the contract exposes encoder ID, revision,
    dimension, algorithm/config fingerprint, and `encode(texts)`. It is separate
    from `LLMProvider.generate()` and has no chat-provider-specific fields.
@@ -284,13 +287,20 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    `spherical-arccos-v0.1`; it is not the final ABY metric.
 7. **Local atlas and matching** — `directed-local-knn-v0.1` uses stable atom-ID
    node order and `(distance, target_atom_id)` tie-breaking. Cross-lane A-B,
-   A-Y, and B-Y outputs are bounded `SemanticMatchCandidate` evidence with
-   rank, distance, mutual-nearest, and mutual-kNN flags; nearest never means
-   equivalent or true.
-8. **Evidence and replay** — the serializable bundle binds schema, encoder,
+   A-Y, and B-Y outputs use `atlas-local-cross-lane-v0.1`: a pair is eligible
+   only when its directed atlas contains the forward or reverse edge. There is
+   no global-nearest fallback. Evidence records `forward_knn`, `reverse_knn`,
+   `mutual_knn`, locally defined mutual-nearest, rank, and distance; reverse-only
+   adjacency is eligible because the directed atlas relation is still local.
+   Nearest never means equivalent or true.
+8. **Evidence and replay** — the serializable bundle binds atomizer version
+   `frame-atomizer-v0.1`, matcher version, `matches_per_source`, schema, encoder,
    metric, atlas, k, atoms, points, edges, matches, and a canonical SHA-256
-   fingerprint. Dedicated contained artifacts are byte-stable JSON/JSONL with
-   exact payload hashes and no timestamps or provider objects.
+   fingerprint. Bundle validation separately enforces unique/exact atom-point
+   identity, encoder agreement, canonical atlas edges/ranks, actual endpoint
+   lanes, atlas-local match backing, and canonical matcher output. Dedicated
+   contained artifacts are byte-stable JSON/JSONL with exact payload hashes,
+   transform provenance, and no timestamps or provider objects.
 9. **Adoption gate** — no POT, geomstats, sentence-transformers, PyTorch,
    NumPy, vector database, GW/FGW framework, or new runtime dependency is
    adopted. Pure Python is sufficient for this bounded V0 and avoids premature
