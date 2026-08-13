@@ -97,7 +97,7 @@ def test_target_architecture_status_and_pipeline_are_explicit():
         assert concept in target
 
 
-def test_roadmap_locks_accepted_pre_p1_5_gates_and_candidate_boundary():
+def test_roadmap_locks_accepted_p1_5_and_p1_6_candidate_boundary():
     roadmap = read_repo_text(
         "docs/authority/ABY_PHASE_GATES_AND_ROADMAP_V0_1.md"
     )
@@ -108,14 +108,15 @@ def test_roadmap_locks_accepted_pre_p1_5_gates_and_candidate_boundary():
         "PRE_P1_5_AUTHORITY_LOCK_STATUS: ACCEPTED",
         "PRE_P1_5_RUNTIME_HARDENING_STATUS: ACCEPTED",
         "PRE_P1_5_RUNTIME_HARDENING_GATE:",
-        "P1.5_STATUS: IMPLEMENTED_CANDIDATE",
-        "P1.6_STATUS: NOT_STARTED",
+        "P1.5_STATUS: ACCEPTED",
+        "P1.6_STATUS: IMPLEMENTED_CANDIDATE",
         "P1.7_STATUS: NOT_STARTED",
         "P1.8_STATUS: NOT_STARTED",
+        "P1.9_STATUS: NOT_STARTED",
     ):
         assert marker in roadmap
     assert "PRE_P1.5_STATUS: CURRENT_AUTHORITY_LOCK_WORK" not in roadmap
-    assert "P1.5_STATUS: ACCEPTED" not in roadmap
+    assert "P1.5_STATUS: IMPLEMENTED_CANDIDATE" not in roadmap
 
 
 def test_historical_s3_skeleton_is_unmistakably_non_authoritative():

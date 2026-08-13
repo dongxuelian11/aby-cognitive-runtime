@@ -32,10 +32,10 @@ PRE-P1.5: Repo-Native Doctrine / Architecture Alignment and Runtime Hardening
 
 PRE_P1_5_RUNTIME_HARDENING_STATUS: ACCEPTED
 
-P1.5_STATUS: IMPLEMENTED_CANDIDATE
+P1.5_STATUS: ACCEPTED
 P1.5: Shared Semantic Geometry Foundation
 
-P1.6_STATUS: NOT_STARTED
+P1.6_STATUS: IMPLEMENTED_CANDIDATE
 P1.6: ABY Parallel Runtime
 
 P1.7_STATUS: NOT_STARTED
@@ -68,12 +68,13 @@ PRE_P1_5_RUNTIME_HARDENING_STATUS:
 ACCEPTED
 
 P1.5_STATUS:
-IMPLEMENTED_CANDIDATE
+ACCEPTED
 ```
 
 The authority lock and bounded S1 publication/finalization hardening are
-accepted. P1.5 is now an implementation candidate under review, not an accepted
-phase. The S1 publication boundary is not the future ABY Commit Barrier.
+accepted. P1.5 Shared Semantic Geometry Foundation is independently accepted.
+P1.6 is an implementation candidate under review, not an accepted phase. The
+S1 publication boundary is not the future ABY Commit Barrier.
 
 ## Gate discipline
 
