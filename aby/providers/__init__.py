@@ -1,20 +1,33 @@
-"""Provider abstraction (P1 scope, P0 §17).
+"""Neutral LLM provider abstraction (P1.2).
 
-P0 §15: lanes may use different model providers. The abstraction below is
-minimal on purpose; its final shape is a P1 design decision
-(see docs/design/P1_DESIGN.md, open question Q5).
+- ``LLMRequest`` / ``LLMResponse`` — generic normalized contracts
+- ``FakeProvider`` — deterministic offline test infrastructure
+- ``OpenAICompatProvider`` — vendor-neutral OpenAI-compatible HTTP adapter
+
+No API key may ever enter request/response metadata, events, errors, or
+artifacts. Keys are read from environment variables at execution time only.
 """
 
-from abc import ABC, abstractmethod
+from .base import (
+    LLMMessage,
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    ProviderError,
+    ProviderErrorKind,
+    emit,
+)
+from .fake import FakeProvider
+from .openai_compat import OpenAICompatProvider
 
-
-class Provider(ABC):
-    """Minimal LLM provider interface. Implementations are P1 work."""
-
-    @abstractmethod
-    async def complete(self, messages: list[dict[str, str]], **kwargs) -> str:
-        """Return the model's text completion for the given conversation."""
-        raise NotImplementedError(
-            "Provider implementations are P1 work. Blocked until P0 V0.1 "
-            "acceptance (docs/p0/P0_ACCEPTANCE_TRACKER.md)."
-        )
+__all__ = [
+    "LLMMessage",
+    "LLMProvider",
+    "LLMRequest",
+    "LLMResponse",
+    "ProviderError",
+    "ProviderErrorKind",
+    "emit",
+    "FakeProvider",
+    "OpenAICompatProvider",
+]

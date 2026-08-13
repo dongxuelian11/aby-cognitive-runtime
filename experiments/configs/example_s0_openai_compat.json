@@ -1,0 +1,30 @@
+{
+  "schema_version": "ABY_EXPERIMENT_CONFIG_V1_0",
+  "experiment_id": "example-s0-openai-compat",
+  "seed": 42,
+  "system_id": "S0",
+  "dataset_id": "synthetic",
+  "task_family": "synthetic_dry_run",
+  "difficulty": "trivial",
+  "risk": "none",
+  "episode_limit": 1,
+  "timeout_seconds": 30.0,
+  "model_config_ref": "",
+  "memory_config_ref": "",
+  "tool_config_ref": "",
+  "telemetry_enabled": true,
+  "metadata": {
+    "provider": {
+      "type": "openai_compat",
+      "base_url": "http://localhost:8000/v1",
+      "model": "your-model-name",
+      "api_key_env": "ABY_LLM_API_KEY",
+      "timeout_seconds": 30.0,
+      "temperature": 0.0,
+      "max_output_tokens": 256,
+      "seed": null,
+      "max_retries": 1
+    },
+    "description": "S0 with an OpenAI-compatible endpoint. Stores only the env-var NAME (ABY_LLM_API_KEY); the secret is resolved at execution time and never persisted. Validates without network or credentials."
+  }
+}

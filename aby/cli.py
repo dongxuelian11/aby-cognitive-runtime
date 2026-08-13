@@ -4,7 +4,7 @@ Commands:
 - ``aby status``                        — P0/P1 authority status
 - ``aby experiment validate <config>``  — offline config validation
 - ``aby experiment dry-run <config>``   — offline deterministic dry-run + artifacts
-- ``aby run --config <config>``         — reserved for later P1 stages (not implemented)
+- ``aby run --config <config>``         — explicit S0 execution path
 """
 
 import argparse
@@ -22,6 +22,7 @@ def _cmd_status() -> int:
     print("SCIENTIFICALLY_VALIDATED: no (hypotheses H1-H6 unvalidated / experimental)")
     print("P1 Experimental Harness: authorized (P0 closure merged)")
     print("P1.1 Experimental Harness Foundation: IMPLEMENTED_CANDIDATE (P1 not complete)")
+    print("P1.2 S0 Single-LLM Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
     return 0
 
 
@@ -29,6 +30,15 @@ def _load_config(path: str):
     from .experiments.config import load_config
 
     return load_config(Path(path))
+
+
+def _validate_config_semantics(config):
+    """Validate system-specific semantics without credentials or network I/O."""
+    if config.system_id == "S0":
+        from .baselines.s0 import validate_s0_provider_config
+
+        return validate_s0_provider_config(config)
+    return None
 
 
 def _cmd_experiment(args: argparse.Namespace) -> int:
@@ -39,6 +49,11 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
         return 2
     except ValidationError as exc:
         print(f"ERROR: invalid experiment config: {exc}", file=sys.stderr)
+        return 2
+    try:
+        provider_spec = _validate_config_semantics(config)
+    except ValueError as exc:
+        print(f"ERROR: invalid experiment config semantics: {exc}", file=sys.stderr)
         return 2
 
     if args.experiment_command == "validate":
@@ -53,14 +68,32 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
         from .experiments.harness import run_experiment
         from .experiments.system import OFFLINE_SYSTEMS
 
-        system = OFFLINE_SYSTEMS.get(config.system_id)
-        if system is None:
-            print(
-                f"ERROR: no offline deterministic system registered for system_id "
-                f"'{config.system_id}'. Available: {sorted(OFFLINE_SYSTEMS)}",
-                file=sys.stderr,
-            )
-            return 2
+        if config.system_id == "S0":
+            from .baselines.s0 import build_s0
+
+            if provider_spec["type"] != "fake":
+                print(
+                    "ERROR: 'aby experiment dry-run' is offline-only; "
+                    "network-capable S0 providers are forbidden regardless of "
+                    "credential availability. Use 'aby run --config <config>' "
+                    "for explicit real-provider execution.",
+                    file=sys.stderr,
+                )
+                return 2
+            try:
+                system = build_s0(config)
+            except ValueError as exc:
+                print(f"ERROR: {exc}", file=sys.stderr)
+                return 2
+        else:
+            system = OFFLINE_SYSTEMS.get(config.system_id)
+            if system is None:
+                print(
+                    f"ERROR: no offline deterministic system registered for system_id "
+                    f"'{config.system_id}'. Available: {sorted(OFFLINE_SYSTEMS)}",
+                    file=sys.stderr,
+                )
+                return 2
         summary = run_experiment(config, system)
         print(f"OK: dry-run {summary.experiment_id} — {len(summary.artifact_dirs)} episode(s)")
         for status_id, status in summary.episode_statuses.items():
@@ -70,6 +103,68 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
         return 0
 
     return 2
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    """Run S0 explicitly; non-S0 systems remain reserved for later P1 stages."""
+    try:
+        config = _load_config(args.config)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    except ValidationError as exc:
+        print(f"ERROR: invalid experiment config: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        _validate_config_semantics(config)
+    except ValueError as exc:
+        print(f"ERROR: invalid experiment config semantics: {exc}", file=sys.stderr)
+        return 2
+
+    if config.system_id != "S0":
+        print(
+            "ERROR: 'aby run' currently supports only S0; S1/S2/S3 remain "
+            "reserved and are not implemented.",
+            file=sys.stderr,
+        )
+        return 2
+
+    from .baselines.s0 import build_s0, s0_requires_missing_credential
+    from .experiments.harness import run_experiment
+
+    missing_env = s0_requires_missing_credential(config)
+    if missing_env is not None:
+        print(
+            f"ERROR: S0 real provider requires environment variable {missing_env} "
+            "(not set).",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        system = build_s0(config)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    summary = run_experiment(config, system)
+    failed = [
+        episode_id
+        for episode_id, status in summary.episode_statuses.items()
+        if status != "COMPLETED"
+    ]
+    stream = sys.stderr if failed else sys.stdout
+    prefix = "ERROR" if failed else "OK"
+    print(
+        f"{prefix}: run {summary.experiment_id} — "
+        f"{len(summary.artifact_dirs)} episode(s)",
+        file=stream,
+    )
+    for status_id, status in summary.episode_statuses.items():
+        print(f"  {status_id}: {status}", file=stream)
+    for directory in summary.artifact_dirs:
+        print(f"  artifacts: {directory}", file=stream)
+    return 2 if failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -92,9 +187,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     dry_run_parser.add_argument("config", help="path to experiment config JSON")
 
-    run_parser = sub.add_parser(
-        "run", help="run one experiment episode (reserved for later P1 stages)"
-    )
+    run_parser = sub.add_parser("run", help="run an explicit S0 experiment")
     run_parser.add_argument("--config", required=True, help="experiment config JSON")
 
     args = parser.parse_args(argv)
@@ -106,10 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_experiment(args)
 
     if args.command == "run":
-        raise NotImplementedError(
-            "Episode execution is reserved for later P1 stages. "
-            "Use 'aby experiment dry-run' for the P1.1 offline harness."
-        )
+        return _cmd_run(args)
 
     return 1
 

@@ -1,0 +1,23 @@
+{
+  "schema_version": "ABY_EXPERIMENT_CONFIG_V1_0",
+  "experiment_id": "example-s0-fake",
+  "seed": 42,
+  "system_id": "S0",
+  "dataset_id": "synthetic",
+  "task_family": "synthetic_dry_run",
+  "difficulty": "trivial",
+  "risk": "none",
+  "episode_limit": 2,
+  "timeout_seconds": 5.0,
+  "model_config_ref": "",
+  "memory_config_ref": "",
+  "tool_config_ref": "",
+  "telemetry_enabled": true,
+  "metadata": {
+    "provider": {
+      "type": "fake",
+      "model": "fake-s0"
+    },
+    "description": "Offline deterministic S0 single-LLM baseline with the fake provider. No network, no credentials."
+  }
+}

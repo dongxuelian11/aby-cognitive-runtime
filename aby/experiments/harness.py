@@ -53,15 +53,18 @@ def run_experiment(
     for index in range(config.episode_limit):
         seed = config.seed + index
         episode_id = f"{config.experiment_id}-ep{index + 1:04d}"
+        log = EventLog()
         episode_input = EpisodeInput(
             episode_id=episode_id,
             dataset_id=config.dataset_id,
             task_family=config.task_family,
             input={"task": f"{config.task_family}: synthetic episode {index + 1}"},
             seed=seed,
+            # Generic event-sink hook: systems may append additional
+            # evidence events into the episode log (P1.2 neutral mechanism).
+            metadata={"event_log": log},
         )
 
-        log = EventLog()
         record = runner.run(system, episode_input, config.timeout_seconds, log)
 
         telemetry = None
