@@ -11,7 +11,7 @@ ABY tests whether separating cognition into three heterogeneous lanes — **A** 
 | Phase | Content | Status |
 | ----- | ------- | ------ |
 | P0 | Theory freeze V0.1 | Archived 2026-08-13 · ACCEPTED (15/15, independent exact-source review PASS) |
-| P1 | Experimental harness | Authorized after P0 closure merge · not started |
+| P1 | Experimental harness | Authorized · P1.1 foundation implemented (candidate, PR pending) |
 | P2–P5 | (to be defined later) | — |
 
 Status distinctions:
