@@ -59,3 +59,23 @@ Decision: accept / reject / continue / modify
 - This is an engineering correction to an unaccepted candidate, not scientific
   validation. Y costs, geodesic resolution, live lanes, P1.6, and S3 remain
   unimplemented.
+
+## 2026-08-13 — P1.5 accepted; P1.6 parallel runtime implemented candidate
+
+- P1.5 Shared Semantic Geometry Foundation is independently accepted.
+- P1.6 advances to `IMPLEMENTED_CANDIDATE` for bounded implementation and
+  review. P1.7 Y Dissipation Geometry, P1.8 geodesic resolution, and S3 remain
+  `NOT_STARTED`.
+- This phase transition is engineering authority only. It is not scientific
+  validation of ABY, semantic quality, Y prediction, or geodesic coordination.
+- Candidate implementation uses one immutable content-addressed accepted
+  snapshot, role-bounded A/B/Y projections, one strict JSON-text inference per
+  lane, deterministic no-repair P0-frame parsing, three-worker logical
+  concurrency, lane-local provider evidence, and canonical A-then-B-then-Y
+  merge independent of completion order.
+- Any provider/JSON/schema failure fails the runtime closed with no geometry.
+  Successful lanes may enter only the already accepted P1.5 semantic-geometry
+  builder. There is no shared EventLog/memory/world/tool mutation from workers.
+- P1.7 Y geometry, P1.8 geodesic resolution, S3, `ResolveDecision`, and Commit
+  Barrier remain unimplemented. Scientific result: `NOT_RUN`; the candidate
+  establishes engineering controls only.

@@ -1,8 +1,8 @@
 # P1 — Experimental Harness Design (HISTORICAL / WORKING DESIGN)
 
 Status: P0 frozen content remains authoritative. P1.1 through P1.4 are
-accepted/merged; both PRE-P1.5 gates are accepted; P1.5 is an
-IMPLEMENTED_CANDIDATE, not an accepted phase.
+accepted/merged; both PRE-P1.5 gates and P1.5 are accepted; P1.6 is an
+IMPLEMENTED_CANDIDATE, not an accepted phase. P1.7, P1.8, and S3 are NOT_STARTED.
 Scope source: P0 §17.
 
 ## Canonical P1 architecture authority
@@ -35,11 +35,12 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 | `aby/events/` | append-only event log with replay + stable event IDs | 15, 16; P1.1 |
 | `aby/telemetry/` | evidence-based collector into the frozen `TelemetryRecord` | 7, 8; P1.1 |
 | `aby/providers/` | provider abstraction (stub; lanes may use different providers) | 15, 17 |
-| `aby/lanes/` | A/B/Y lane stubs | 5 (P1.2+) |
+| `aby/lanes/` | P1.6 live A/B/Y proposal lanes over one immutable accepted snapshot | 5; P1.6 candidate |
 | `aby/resolver/` | deterministic rule-based resolver, bounded retries | 6 (P1.2+) |
 | `aby/memory/` | committed episode store, versioned structured facts, deterministic keyword retrieval | 14; P1.3 |
 | `aby/baselines/` | accepted S0/S1/S2 controls, historical S3–S4 definitions | 9; P1.2–P1.4 |
-| `aby/semantic/` | P1.5 Semantic Atom/IR, shared encoder contract, spherical points, directed local kNN atlas, bounded match candidates, deterministic evidence bundle/artifacts | P1.5 candidate |
+| `aby/semantic/` | P1.5 Semantic Atom/IR, shared encoder contract, spherical points, directed local kNN atlas, bounded match candidates, deterministic evidence bundle/artifacts | P1.5 accepted |
+| `aby/runtime/` | immutable snapshot, strict frame parsing, lane-local evidence, deterministic parallel join, optional P1.5 handoff | P1.6 candidate |
 | `aby/cli.py` | status, `experiment validate`, `experiment dry-run` | P1.1 |
 
 ## P1.1 decisions (resolved)
@@ -251,7 +252,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    not evidence of superiority. Future comparisons must control tokens, cost,
    latency, correctness, retries, and provider failures.
 
-## P1.5 decisions (Shared Semantic Geometry Foundation, implemented candidate)
+## P1.5 decisions (Shared Semantic Geometry Foundation, accepted)
 
 1. **P0 adapter boundary** — frozen `MacroFrame`, `ActionFrame`, and
    `DissipationFrame` remain unchanged. `FrameAtomizer` deterministically maps
@@ -308,6 +309,59 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 10. **Strict boundary** — P1.5 adds no live A/B/Y calls or parallel runtime, Y
     penalties/dissipation geometry, Dijkstra/A*/geodesic resolver, S3, or Commit
     Barrier. Those remain gated future work.
+
+## P1.6 decisions (ABY Parallel Runtime, implemented candidate)
+
+1. **Accepted snapshot boundary** — `RuntimeSnapshot` uses schema
+   `p1.6-v0.1`, immutable tuple-backed content, and a canonical SHA-256 identity
+   with no timestamp or random input. A/B/Y projections retain the same
+   snapshot identity while limiting each lane to its role-relevant accepted
+   context. B does not receive full history, and first-stage Y has no input path
+   from fresh A/B outputs.
+2. **Live role-pure lanes** — fixed prompts `a-lane-v0.1`, `b-lane-v0.1`, and
+   `y-lane-v0.1` each make exactly one logical call through the accepted neutral
+   provider contract. A returns only `MacroFrame`, B only `ActionFrame`, and Y
+   only `DissipationFrame`. B tool requests remain inert intents. Y is explicitly
+   not a third answer/action agent; `estimated_y` remains a prediction, not
+   observed `y`.
+3. **Strict output protocol** — `strict-json-text-v0.1` uses one provider text
+   response, strict JSON decoding, exact top-level field-set checks, and strict
+   frozen-frame validation. Markdown fences, invalid/non-object JSON,
+   missing/extra fields, wrong types, and bounds failures are rejected. There is
+   no repair, parser, judge, verifier, retry-at-logical-level, or fallback call.
+   Core runtime records native provider schema enforcement as false.
+4. **True logical concurrency** — `ThreadPoolExecutor(max_workers=3)` submits
+   A/B/Y from the same snapshot before collecting results. Provider ownership is
+   separate per lane. Synchronization-Barrier tests require all three calls to
+   be in flight before any returns; this is logical/API concurrency, not a claim
+   of hardware parallelism.
+5. **Event and authority isolation** — provider threads append only to a
+   lane-local bounded secret-free buffer with contiguous local ordinals. The
+   coordinator merges A, then B, then Y regardless of completion order. Workers
+   have no shared `EventLog`, memory, world-state, tool, artifact-authority,
+   Resolver, or commit mutation path.
+6. **Evidence and accounting** — frozen typed proposals bind snapshot, prompt,
+   provider/model, generation controls, strict-output protocol, parsed frame,
+   response hash/length, usage availability, tokens, latency, retries, and a
+   stable proposal fingerprint. Normal total logical calls are exactly three;
+   transport retries are separate. Aggregate tokens/shares exist only when all
+   providers report usage, and observed token shares are never named or treated
+   as lowercase `a/b/y`.
+7. **Fail-closed result** — any A/B/Y provider or structured-output failure
+   yields runtime `FAILED`; partial lane evidence remains auditable but never
+   becomes accepted cognition or geometry. No lane is silently dropped and no
+   S0/S1/S2 fallback occurs. Runtime semantic identity excludes wall time,
+   provider latency, request IDs, and completion order.
+8. **Accepted P1.5 handoff only** — when all lanes succeed and geometry is
+   enabled, the coordinator passes the exact frozen P0 frames to the accepted
+   P1.5 bundle builder through an injected `SharedEncoder`. Offline tests use
+   `reference_hashing/p1.5-v0.1` with its permanent reference-only label. Y emits
+   no `INTENT`/`ACTION` atoms, and `estimated_y` never modifies spherical
+   distance or atlas edges.
+9. **Strict future-phase boundary** — P1.6 ends at parallel proposals plus an
+   optional P1.5 geometry bundle. It implements no Y Dissipation Geometry,
+   penalties, Dijkstra/A*, geodesic Resolver, `ResolveDecision`, S3, tool
+   execution, Commit Barrier, or authoritative publication.
 
 ## Still open for later P1 stages
 

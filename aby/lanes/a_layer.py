@@ -1,9 +1,26 @@
-"""A-Layer — Macro Continuity (P0 V0.1 §5.1)."""
+"""Live P1.6 A-Layer — Macro Boundary / Continuity (P0 V0.1 §5.1)."""
 
 from ..contracts.frames import MacroFrame
+from ..providers.base import LLMProvider
+from ..runtime.bundle import (
+    ALaneExecutionResult,
+    AProposal,
+    LaneGenerationConfig,
+    LaneStatus,
+)
+from ..runtime.lane_events import LaneName
+from ..runtime.snapshot import RuntimeSnapshot
+from .base import (
+    A_LANE_PROMPT,
+    A_LANE_PROMPT_SHA256,
+    A_LANE_PROMPT_VERSION,
+    BaseLiveLane,
+    proposal_common,
+    result_usage,
+)
 
 
-class ALayer:
+class ALayer(BaseLiveLane):
     """Maintains long-horizon continuity without directly solving the current task.
 
     Mission (P0 §5.1): maintain the long-horizon state needed for continuity
@@ -25,8 +42,39 @@ class ALayer:
     P0 §15: A may be slower and event-triggered.
     """
 
-    def produce(self, *args, **kwargs) -> MacroFrame:
-        raise NotImplementedError(
-            "A-Layer is P1 implementation work. Blocked until P0 V0.1 acceptance "
-            "(docs/p0/P0_ACCEPTANCE_TRACKER.md)."
+    lane = LaneName.A
+    prompt = A_LANE_PROMPT
+    prompt_version = A_LANE_PROMPT_VERSION
+    prompt_hash = A_LANE_PROMPT_SHA256
+
+    def __init__(self, provider: LLMProvider) -> None:
+        super().__init__(provider)
+
+    def produce(
+        self, snapshot: RuntimeSnapshot, generation: LaneGenerationConfig
+    ) -> ALaneExecutionResult:
+        raw = self._execute(snapshot, generation)
+        common = result_usage(raw)
+        if raw.failure is not None:
+            return ALaneExecutionResult(
+                status=LaneStatus.FAILED, failure=raw.failure, **common
+            )
+        if not isinstance(raw.frame, MacroFrame):
+            return ALaneExecutionResult(
+                status=LaneStatus.FAILED,
+                failure={"error_category": "A_FRAME_TYPE_MISMATCH"},
+                **common,
+            )
+        proposal = AProposal(
+            frame=raw.frame,
+            **proposal_common(
+                raw,
+                snapshot=snapshot,
+                generation=generation,
+                prompt_version=self.prompt_version,
+                prompt_hash=self.prompt_hash,
+            ),
+        )
+        return ALaneExecutionResult(
+            status=LaneStatus.SUCCEEDED, proposal=proposal, **common
         )

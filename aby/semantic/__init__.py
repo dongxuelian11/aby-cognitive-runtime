@@ -1,4 +1,4 @@
-"""P1.5 Shared Semantic Geometry Foundation (experimental candidate)."""
+"""Accepted P1.5 Shared Semantic Geometry Foundation."""
 
 from .artifacts import (
     SEMANTIC_ARTIFACT_FILENAMES,
