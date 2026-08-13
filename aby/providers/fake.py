@@ -67,6 +67,7 @@ class FakeProvider(LLMProvider):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
+            usage_available=True,
             provider_request_id=f"fake-{digest}",
             latency_ms=latency_ms,
             transport_retries=0,
@@ -79,6 +80,7 @@ class FakeProvider(LLMProvider):
                 "model": self.model,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
+                "usage_available": True,
             },
         )
         return response

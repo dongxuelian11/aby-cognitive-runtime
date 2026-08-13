@@ -16,6 +16,7 @@ separately and never increase the logical inference count.
 
 import hashlib
 import json
+import math
 from typing import Any
 
 from ..events import Event, EventLog
@@ -31,15 +32,8 @@ from ..providers import (
 S0_SYSTEM_ID = "S0"
 S0_PROMPT_VERSION = "S0_PROMPT_V0_1"
 
-S0_PROMPT_V0_1 = (
-    "Answer the supplied task directly and correctly.\n\n"
-    "Task:\n{task}"
-)
+S0_PROMPT_V0_1 = "Answer the supplied task directly and correctly."
 S0_PROMPT_SHA256 = hashlib.sha256(S0_PROMPT_V0_1.encode("utf-8")).hexdigest()
-
-
-def _render_prompt(task: str) -> str:
-    return S0_PROMPT_V0_1.format(task=task)
 
 
 def _extract_task(episode_input_data: Any) -> str:
@@ -63,11 +57,17 @@ class S0SingleLLM:
         *,
         temperature: float = 0.0,
         max_output_tokens: int = 1024,
+        provider_timeout_seconds: float | None = None,
         seed: int | None = None,
     ) -> None:
         self.provider = provider
         self.temperature = temperature
         self.max_output_tokens = max_output_tokens
+        self.provider_timeout_seconds = float(
+            provider_timeout_seconds
+            if provider_timeout_seconds is not None
+            else getattr(provider, "timeout_seconds", 30.0)
+        )
         self.seed = seed
 
     def run_episode(self, episode_input: EpisodeInput) -> EpisodeResult:
@@ -88,6 +88,9 @@ class S0SingleLLM:
             ],
             temperature=self.temperature,
             max_output_tokens=self.max_output_tokens,
+            # This is the provider/HTTP timeout. EpisodeRunner applies the
+            # separate outer episode timeout from ExperimentConfig.
+            timeout_seconds=self.provider_timeout_seconds,
             seed=self.seed,
         )
 
@@ -99,6 +102,7 @@ class S0SingleLLM:
             "prompt_sha256": S0_PROMPT_SHA256,
             "temperature": self.temperature,
             "max_output_tokens": self.max_output_tokens,
+            "provider_timeout_seconds": self.provider_timeout_seconds,
             "seed": self.seed,
             "logical_model_calls": 1,
         }
@@ -116,6 +120,8 @@ class S0SingleLLM:
                     "transport_retries": exc.transport_retries,
                     "input_tokens": 0,
                     "output_tokens": 0,
+                    "total_tokens": 0,
+                    "usage_available": False,
                 },
             )
 
@@ -130,10 +136,92 @@ class S0SingleLLM:
                 "input_tokens": response.input_tokens,
                 "output_tokens": response.output_tokens,
                 "total_tokens": response.total_tokens,
+                "usage_available": response.usage_available,
                 "provider_latency_ms": response.latency_ms,
                 "transport_retries": response.transport_retries,
             },
         )
+
+
+def _require_nonempty_string(spec: dict[str, Any], field: str, *, default=None) -> str:
+    value = spec.get(field, default)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"S0 provider field {field!r} must be a non-empty string")
+    return value
+
+
+def _finite_number(
+    spec: dict[str, Any], field: str, default: float, *, strictly_positive: bool = False
+) -> float:
+    value = spec.get(field, default)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"S0 provider field {field!r} must be numeric")
+    normalized = float(value)
+    if not math.isfinite(normalized):
+        raise ValueError(f"S0 provider field {field!r} must be finite")
+    if strictly_positive and normalized <= 0:
+        raise ValueError(f"S0 provider field {field!r} must be > 0")
+    if not strictly_positive and normalized < 0:
+        raise ValueError(f"S0 provider field {field!r} must be >= 0")
+    return normalized
+
+
+def _integer(
+    spec: dict[str, Any], field: str, default: int, *, minimum: int
+) -> int:
+    value = spec.get(field, default)
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"S0 provider field {field!r} must be an integer >= {minimum}")
+    return value
+
+
+def validate_s0_provider_config(config: ExperimentConfig) -> dict[str, Any]:
+    """Validate and normalize S0 provider semantics without I/O.
+
+    This function never resolves credentials and never performs network
+    transport, so it is safe for ``aby experiment validate``.
+    """
+    raw_spec = (config.metadata or {}).get("provider")
+    if raw_spec is None:
+        raw_spec = {"type": "fake"}
+    if not isinstance(raw_spec, dict):
+        raise ValueError("S0 config metadata.provider must be an object")
+    spec = dict(raw_spec)
+    provider_type = _require_nonempty_string(spec, "type", default="fake")
+    if provider_type not in {"fake", "openai_compat"}:
+        raise ValueError(
+            f"unknown S0 provider type {provider_type!r} "
+            "(expected 'fake' or 'openai_compat')"
+        )
+
+    normalized = dict(spec)
+    normalized["type"] = provider_type
+    normalized["model"] = _require_nonempty_string(
+        spec, "model", default="fake-s0" if provider_type == "fake" else None
+    )
+    normalized["temperature"] = _finite_number(spec, "temperature", 0.0)
+    normalized["max_output_tokens"] = _integer(
+        spec, "max_output_tokens", 1024, minimum=1
+    )
+    seed = spec.get("seed")
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
+        raise ValueError("S0 provider field 'seed' must be an integer or null")
+    normalized["seed"] = seed
+
+    if provider_type == "openai_compat":
+        normalized["base_url"] = _require_nonempty_string(spec, "base_url")
+        normalized["api_key_env"] = _require_nonempty_string(
+            spec, "api_key_env", default="ABY_LLM_API_KEY"
+        )
+        normalized["timeout_seconds"] = _finite_number(
+            spec, "timeout_seconds", 30.0, strictly_positive=True
+        )
+        normalized["max_retries"] = _integer(spec, "max_retries", 1, minimum=0)
+    else:
+        normalized["timeout_seconds"] = 30.0
+        normalized["max_retries"] = 0
+
+    return normalized
 
 
 def build_s0(config: ExperimentConfig) -> S0SingleLLM:
@@ -150,37 +238,29 @@ def build_s0(config: ExperimentConfig) -> S0SingleLLM:
     """
     from ..providers import FakeProvider, OpenAICompatProvider
 
-    spec = dict((config.metadata or {}).get("provider") or {})
-    provider_type = spec.get("type", "fake")
+    spec = validate_s0_provider_config(config)
+    provider_type = spec["type"]
 
     if provider_type == "fake":
-        provider = FakeProvider(model=spec.get("model", "fake-s0"))
+        provider = FakeProvider(model=spec["model"])
     elif provider_type == "openai_compat":
-        if not spec.get("base_url"):
-            raise ValueError(
-                "S0 openai_compat provider spec requires a non-empty 'base_url' "
-                "in config.metadata.provider"
-            )
         provider = OpenAICompatProvider(
             base_url=spec["base_url"],
-            model=spec.get("model", ""),
-            api_key_env=spec.get("api_key_env", "ABY_LLM_API_KEY"),
-            timeout_seconds=float(spec.get("timeout_seconds", 30.0)),
-            temperature=float(spec.get("temperature", 0.0)),
-            max_output_tokens=int(spec.get("max_output_tokens", 1024)),
-            seed=spec.get("seed"),
-            max_retries=int(spec.get("max_retries", 1)),
-        )
-    else:
-        raise ValueError(
-            f"unknown S0 provider type {provider_type!r} (expected 'fake' or 'openai_compat')"
+            model=spec["model"],
+            api_key_env=spec["api_key_env"],
+            timeout_seconds=spec["timeout_seconds"],
+            temperature=spec["temperature"],
+            max_output_tokens=spec["max_output_tokens"],
+            seed=spec["seed"],
+            max_retries=spec["max_retries"],
         )
 
     return S0SingleLLM(
         provider,
-        temperature=float(spec.get("temperature", 0.0)),
-        max_output_tokens=int(spec.get("max_output_tokens", 1024)),
-        seed=spec.get("seed"),
+        temperature=spec["temperature"],
+        max_output_tokens=spec["max_output_tokens"],
+        provider_timeout_seconds=spec["timeout_seconds"],
+        seed=spec["seed"],
     )
 
 
@@ -192,10 +272,10 @@ def s0_requires_missing_credential(config: ExperimentConfig) -> str | None:
     """
     import os
 
-    spec = dict((config.metadata or {}).get("provider") or {})
-    if spec.get("type") != "openai_compat":
+    spec = validate_s0_provider_config(config)
+    if spec["type"] != "openai_compat":
         return None
-    env_name = spec.get("api_key_env", "ABY_LLM_API_KEY")
+    env_name = spec["api_key_env"]
     if not os.environ.get(env_name):
         return env_name
     return None

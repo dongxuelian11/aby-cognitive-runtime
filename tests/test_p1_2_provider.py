@@ -73,6 +73,7 @@ def test_fake_provider_usage_propagates():
     assert response.input_tokens > 0
     assert response.output_tokens > 0
     assert response.total_tokens == response.input_tokens + response.output_tokens
+    assert response.usage_available is True
     assert response.finish_reason == "stop"
     assert response.latency_ms >= 0
 
@@ -92,7 +93,9 @@ def test_fake_provider_simulates_errors():
 def test_fake_provider_never_touches_network():
     from pathlib import Path
 
-    source = (Path(__file__).resolve().parent.parent / "aby" / "providers" / "fake.py").read_text()
+    source = (
+        Path(__file__).resolve().parent.parent / "aby" / "providers" / "fake.py"
+    ).read_text(encoding="utf-8")
     for banned in ("urllib", "socket", "http", "requests"):
         assert banned not in source
 
@@ -111,6 +114,7 @@ def test_real_provider_request_serialization(monkeypatch):
 
     def fake_urlopen(req, timeout=None):
         captured["req"] = req
+        captured["timeout"] = timeout
         return _FakeHTTPResponse(
             json.dumps(
                 {
@@ -126,7 +130,7 @@ def test_real_provider_request_serialization(monkeypatch):
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     monkeypatch.setenv(API_KEY_ENV, SECRET)
-    response = _make_provider().generate(_req())
+    response = _make_provider(timeout_seconds=7.25).generate(_req())
 
     req = captured["req"]
     assert req.full_url == "http://example.test/v1/chat/completions"
@@ -139,8 +143,11 @@ def test_real_provider_request_serialization(monkeypatch):
     assert body["temperature"] == 0.0
     assert body["max_tokens"] == 64
     assert body["seed"] == 7
+    assert captured["timeout"] == 7.25
     assert response.content == "hi"
     assert response.input_tokens == 11 and response.output_tokens == 3
+    assert response.total_tokens == 14
+    assert response.usage_available is True
     assert response.provider_request_id == "req-1"
     assert response.latency_ms >= 0
 
@@ -162,6 +169,8 @@ def test_real_provider_response_parsing_without_usage(monkeypatch):
     assert response.content == "ok"
     assert response.finish_reason == "length"
     assert response.input_tokens == 0 and response.output_tokens == 0
+    assert response.total_tokens == 0
+    assert response.usage_available is False
 
 
 def test_missing_credential_fails_with_authentication_error(monkeypatch):

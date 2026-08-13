@@ -129,6 +129,29 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
     PROVIDER_TIMEOUT / NETWORK_ERROR / INVALID_PROVIDER_RESPONSE /
     PROVIDER_ERROR`; no secret-bearing data in error messages.
 
+## P1.2 bounded corrections (PR #3)
+
+1. **Offline dry-run boundary** — `aby experiment dry-run` accepts only
+   deterministic offline systems. An S0 `openai_compat` config is rejected
+   before credential resolution or transport, even when its credential exists.
+   Explicit S0 execution uses `aby run --config <config>`; non-S0 systems remain
+   reserved.
+2. **Two distinct timeouts** — `metadata.provider.timeout_seconds` is the exact
+   HTTP transport timeout used by `OpenAICompatProvider`. Top-level
+   `ExperimentConfig.timeout_seconds` remains the independent outer bound applied
+   by `EpisodeRunner`; neither silently substitutes for the other.
+3. **Usage availability** — provider responses and S0 result metadata carry
+   `usage_available`. Missing provider usage remains numerically compatible with
+   the frozen telemetry fields but is explicitly marked unavailable, never
+   interpreted as measured zero usage.
+4. **Prompt correction** — `S0_PROMPT_V0_1` is the stable generic system message
+   `Answer the supplied task directly and correctly.` The episode task appears
+   only in the user message; prompt hash evidence is computed from the corrected
+   constant.
+5. **Offline semantic validation** — `aby experiment validate` validates S0
+   provider type, required `openai_compat` fields, and bounded numeric settings
+   without reading credentials or invoking network transport.
+
 ## Still open for later P1 stages
 
 - MoA baseline (S2) aggregation scheme.

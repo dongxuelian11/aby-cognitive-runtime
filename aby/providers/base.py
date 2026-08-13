@@ -47,6 +47,10 @@ class LLMResponse(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
+    # Token fields remain numeric for compatibility with the frozen telemetry
+    # wire contract. This flag distinguishes provider-reported zero usage from
+    # a response that did not report usage at all.
+    usage_available: bool = False
     provider_request_id: str = ""
     latency_ms: int = 0
     transport_retries: int = 0  # transport retries only; never extra logical calls

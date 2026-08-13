@@ -87,7 +87,10 @@ class OpenAICompatProvider(LLMProvider):
                 {"provider": self.name, "model": self.model, "attempt": attempts},
             )
             try:
-                response = self._post(payload, api_key, request.timeout_seconds)
+                # Provider transport timeout is configured independently from
+                # the outer EpisodeRunner timeout. The provider value controls
+                # the HTTP call exactly; the runner still bounds the episode.
+                response = self._post(payload, api_key, self.timeout_seconds)
                 response.transport_retries = attempts - 1
                 emit(
                     event_sink,
@@ -97,6 +100,7 @@ class OpenAICompatProvider(LLMProvider):
                         "model": self.model,
                         "input_tokens": response.input_tokens,
                         "output_tokens": response.output_tokens,
+                        "usage_available": response.usage_available,
                         "transport_retries": response.transport_retries,
                     },
                 )
@@ -173,6 +177,7 @@ class OpenAICompatProvider(LLMProvider):
             input_tokens=data.get("input_tokens", 0),
             output_tokens=data.get("output_tokens", 0),
             total_tokens=data.get("total_tokens", 0),
+            usage_available=data.get("usage_available", False),
             provider_request_id=data.get("provider_request_id", ""),
             latency_ms=latency_ms,
             raw_metadata=data.get("raw_metadata", {}),
@@ -199,16 +204,25 @@ class OpenAICompatProvider(LLMProvider):
                 ProviderErrorKind.INVALID_PROVIDER_RESPONSE,
                 "response message content missing",
             )
-        usage = data.get("usage") or {}
-        input_tokens = _as_int(usage.get("prompt_tokens"))
-        output_tokens = _as_int(usage.get("completion_tokens"))
+        usage = data.get("usage")
+        usage_available = (
+            isinstance(usage, dict)
+            and "prompt_tokens" in usage
+            and "completion_tokens" in usage
+        )
+        normalized_usage = usage if usage_available else {}
+        input_tokens = _as_int(normalized_usage.get("prompt_tokens"))
+        output_tokens = _as_int(normalized_usage.get("completion_tokens"))
         return {
             "content": message["content"],
             "model": data.get("model", ""),
             "finish_reason": choices[0].get("finish_reason", ""),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "total_tokens": _as_int(usage.get("total_tokens", input_tokens + output_tokens)),
+            "total_tokens": _as_int(
+                normalized_usage.get("total_tokens", input_tokens + output_tokens)
+            ),
+            "usage_available": usage_available,
             "provider_request_id": data.get("id", ""),
             "raw_metadata": {"id": data.get("id", ""), "object": data.get("object", "")},
         }

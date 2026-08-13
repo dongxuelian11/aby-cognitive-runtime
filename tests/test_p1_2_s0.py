@@ -20,7 +20,7 @@ from aby.experiments import (
     run_experiment,
 )
 from aby.experiments.artifacts import episode_artifact_dir
-from aby.providers import FakeProvider, ProviderError, ProviderErrorKind
+from aby.providers import FakeProvider, LLMResponse, ProviderError, ProviderErrorKind
 from aby.runner import EpisodeRunner, EpisodeStatus
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -56,10 +56,22 @@ class _CountingProvider(FakeProvider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.calls = 0
+        self.last_request = None
 
     def generate(self, request, *, event_sink=None):
         self.calls += 1
+        self.last_request = request
         return super().generate(request, event_sink=event_sink)
+
+
+class _NoUsageProvider(FakeProvider):
+    def generate(self, request, *, event_sink=None):
+        return LLMResponse(
+            content="usage unavailable",
+            provider=self.name,
+            model=self.model,
+            usage_available=False,
+        )
 
 
 # --- S0 purity (§10, §11) ----------------------------------------------------
@@ -75,6 +87,20 @@ def test_s0_exactly_one_logical_inference_per_normal_episode():
     assert record.result is not None and record.result.status == "SUCCEEDED"
 
 
+def test_s0_actual_request_has_stable_system_prompt_and_task_only_in_user_message():
+    provider = _CountingProvider()
+    result = S0SingleLLM(provider).run_episode(_input())
+    assert result.status == "SUCCEEDED"
+    assert provider.calls == 1
+    request = provider.last_request
+    assert request.messages[0].role == "system"
+    assert request.messages[0].content == "Answer the supplied task directly and correctly."
+    assert "{task}" not in request.messages[0].content
+    assert request.messages[1].role == "user"
+    assert request.messages[1].content == "say hello"
+    assert sum(message.content.count("say hello") for message in request.messages) == 1
+
+
 def test_s0_normalized_result_and_prompt_evidence():
     result = S0SingleLLM(FakeProvider()).run_episode(_input())
     assert result.status == "SUCCEEDED"
@@ -85,6 +111,7 @@ def test_s0_normalized_result_and_prompt_evidence():
     assert meta["prompt_sha256"] == S0_PROMPT_SHA256
     assert meta["logical_model_calls"] == 1
     assert meta["transport_retries"] == 0
+    assert meta["usage_available"] is True
     assert meta["input_tokens"] > 0 and meta["output_tokens"] > 0
     assert meta["provider_latency_ms"] >= 0
 
@@ -166,6 +193,19 @@ def test_s0_artifacts_never_persist_secrets(tmp_path, monkeypatch):
     directory = episode_artifact_dir(tmp_path, config.experiment_id, "s0-exp-ep0001")
     for file in directory.iterdir():
         assert SECRET not in file.read_text(encoding="utf-8"), f"secret leaked into {file.name}"
+
+
+def test_s0_usage_unavailable_status_persists_to_result_artifact(tmp_path):
+    config = _config(experiment_id="s0-no-usage")
+    run_experiment(config, S0SingleLLM(_NoUsageProvider()), artifacts_root=tmp_path)
+    directory = episode_artifact_dir(
+        tmp_path, config.experiment_id, "s0-no-usage-ep0001"
+    )
+    result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+    assert result["metadata"]["usage_available"] is False
+    assert result["metadata"]["input_tokens"] == 0
+    assert result["metadata"]["output_tokens"] == 0
+    assert result["metadata"]["total_tokens"] == 0
 
 
 def test_s0_timeout_regression_preserved():
