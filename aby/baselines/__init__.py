@@ -23,6 +23,16 @@ from .s0 import (
     build_s0,
     s0_requires_missing_credential,
 )
+from .s1 import (
+    S1_PROMPT_SHA256,
+    S1_PROMPT_VERSION,
+    S1_SYSTEM_ID,
+    S1_SYSTEM_PROMPT_V0_1,
+    S1SingleLLM,
+    build_s1,
+    s1_requires_missing_credential,
+    validate_s1_config,
+)
 
 
 class Baseline(str, Enum):
@@ -63,4 +73,12 @@ __all__ = [
     "S0SingleLLM",
     "build_s0",
     "s0_requires_missing_credential",
+    "S1_PROMPT_SHA256",
+    "S1_PROMPT_VERSION",
+    "S1_SYSTEM_ID",
+    "S1_SYSTEM_PROMPT_V0_1",
+    "S1SingleLLM",
+    "build_s1",
+    "s1_requires_missing_credential",
+    "validate_s1_config",
 ]

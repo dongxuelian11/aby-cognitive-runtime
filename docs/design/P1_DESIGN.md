@@ -1,7 +1,7 @@
 # P1 — Experimental Harness Design (DRAFT)
 
-Status: **DRAFT** — P0 frozen content remains authoritative. P1.1 decisions below
-are resolved on branch `feat/p1-1-experimental-harness-foundation` (PR pending review).
+Status: **DRAFT** — P0 frozen content remains authoritative. P1.1 and P1.2 are
+accepted/merged; P1.3 S1 is an implementation candidate pending review.
 Scope source: P0 §17.
 
 ## Goal
@@ -24,8 +24,8 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 | `aby/providers/` | provider abstraction (stub; lanes may use different providers) | 15, 17 |
 | `aby/lanes/` | A/B/Y lane stubs | 5 (P1.2+) |
 | `aby/resolver/` | deterministic rule-based resolver, bounded retries | 6 (P1.2+) |
-| `aby/memory/` | episode store, structured facts, keyword retrieval | 14 (P1.2+) |
-| `aby/baselines/` | S0–S4 definitions + adapter stubs | 9 (P1.2+) |
+| `aby/memory/` | committed episode store, versioned structured facts, deterministic keyword retrieval | 14; P1.3 |
+| `aby/baselines/` | S0 implementation, S1 candidate, S2–S4 definitions | 9; P1.2–P1.3 |
 | `aby/cli.py` | status, `experiment validate`, `experiment dry-run` | P1.1 |
 
 ## P1.1 decisions (resolved)
@@ -86,7 +86,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    directories are additionally containment-checked to resolve strictly
    inside `<artifacts_root>/experiments/`.
 
-## P1.2 decisions (S0 Single-LLM baseline, PR pending review)
+## P1.2 decisions (S0 Single-LLM baseline, accepted/merged)
 
 1. **S0 purity definition** — exactly one logical model inference per normal
    successful episode; one fixed versioned prompt `S0_PROMPT_V0_1` (task-only
@@ -153,6 +153,47 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 5. **Offline semantic validation** — `aby experiment validate` validates S0
    provider type, required `openai_compat` fields, and bounded numeric settings
    without reading credentials or invoking network transport.
+
+## P1.3 decisions (S1 Single-LLM + Shared Memory/RAG candidate)
+
+1. **Controlled S1 purity** — S1 reuses the accepted S0 provider/request and
+   timeout semantics and performs exactly one logical model inference per normal
+   episode. Retrieval and memory publication perform zero model calls. There are
+   no tools, agent roles, MoA, A/B/Y execution lanes, judges, best-of selection,
+   query rewriting, summarization, fact extraction, or semantic geometry.
+2. **Reuse/adoption gate** — no external memory/RAG framework, vector database,
+   embedding model, or new dependency is adopted. The in-repository memory facade
+   now has a replaceable process-local `in_memory_keyword` backend. This keeps
+   memory/retrieval as the intended experimental difference from S0.
+3. **Memory primitives** — committed episode items have stable content-derived
+   IDs and immutable/deep-copy read boundaries. Structured facts are idempotent
+   for the same key/value and preserve explicit version history for conflicting
+   values; no LLM extracts facts. Lexical search uses Unicode word tokens, a
+   reproducible occurrence score, descending score order, and stable ID tie-breaks.
+4. **Budget/fairness** — S1 configuration requires `top_k` in `[1, 100]` and
+   `max_context_chars` in `[1, 100000]`; defaults are `5` and `4000`. Both are
+   validated offline and recorded with retained IDs, scores, and exact retained
+   character count. The entire history is never injected.
+5. **Committed-memory-only invariant** — the S1 worker reads a committed snapshot,
+   retrieves, performs its one provider call, and returns an inert write proposal.
+   `EpisodeRunner` invokes the optional outcome finalizer only for a returned
+   result; S1 publishes that exact proposal only when the runner outcome is
+   `COMPLETED`. `FAILED` results are discarded, and `TIMED_OUT` late worker returns
+   are never finalized, so they have no route into retrievable memory.
+6. **Architecture boundary** — this outcome-gated, baseline-local publication is
+   only the minimum safety mechanism required by the P1.1 soft-timeout model. It
+   is **not** the future ABY Commit Barrier and does not implement S2, S3, A/B/Y,
+   a semantic manifold, Y dissipation geometry, or a geodesic Resolver.
+7. **Prompt** — `S1_PROMPT_V0_1` asks only to answer the supplied task, use
+   retrieved memory when relevant, and ignore it when irrelevant. The fixed system
+   instruction plus user template are bound by `prompt_sha256` in result metadata.
+8. **Isolation and execution boundary** — every `build_s1()` call creates a fresh
+   store unless a test explicitly injects one. Fake-provider validation/dry-run are
+   offline; real-provider validation is offline; real-provider dry-run is rejected
+   before credential resolution/network; explicit execution remains `aby run`.
+9. **Evidence** — baseline-specific memory/provider/prompt evidence remains in
+   result metadata and `memory_retrieval` / `memory_commit` events. Frozen P0
+   telemetry wire fields are unchanged.
 
 ## Still open for later P1 stages
 

@@ -11,7 +11,7 @@ ABY tests whether separating cognition into three heterogeneous lanes — **A** 
 | Phase | Content | Status |
 | ----- | ------- | ------ |
 | P0 | Theory freeze V0.1 | Archived 2026-08-13 · ACCEPTED (15/15, independent exact-source review PASS) |
-| P1 | Experimental harness | Authorized · P1.1 foundation accepted · P1.2 S0 baseline candidate (PR pending) |
+| P1 | Experimental harness | Authorized · P1.1 foundation accepted · P1.2 S0 accepted/merged · P1.3 S1 candidate |
 | P2–P5 | (to be defined later) | — |
 
 Status distinctions:
@@ -40,7 +40,7 @@ aby/                  Python package (P1 skeleton)
   lanes/              A/B/Y lane stubs
   resolver/           deterministic Resolver stub
   events/             append-only event log (replayability)
-  memory/             minimal shared memory interface (P0 §14)
+  memory/             committed in-memory episode/fact store + keyword retrieval
   providers/          LLM provider abstraction
   telemetry/          runtime telemetry collector stub
   baselines/          S0–S4 definitions + adapter stub
@@ -55,6 +55,12 @@ experiments/
   datasets/           task datasets
 tests/                contract-level tests (test the freeze, not the implementation)
 ```
+
+P1.3 S1 is a controlled baseline: the accepted single-LLM provider path plus
+fresh process-local committed memory and deterministic bounded keyword retrieval.
+Only runner-accepted `COMPLETED` episodes are published; failed, timed-out, and
+late-finishing workers cannot become retrievable. This is not the future ABY
+Commit Barrier, and no S2/S3 or semantic-geometry architecture is implemented.
 
 ## Quickstart
 

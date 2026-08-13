@@ -113,6 +113,24 @@ class EpisodeRunner:
             else:
                 record.status = EpisodeStatus.COMPLETED
 
+        # Optional architecture-neutral outcome finalization.  S1 uses this
+        # narrow hook to publish a worker-produced memory proposal only after
+        # this runner has accepted COMPLETED.  A timed-out worker has no
+        # ``result`` here, so its late return has no publication path.
+        if result is not None:
+            finalizer = getattr(system, "finalize_episode_outcome", None)
+            if callable(finalizer):
+                try:
+                    result = finalizer(
+                        episode_input,
+                        result,
+                        record.status.value,
+                        event_log,
+                    )
+                except Exception as exc:  # noqa: BLE001 — fail closed as evidence
+                    record.status = EpisodeStatus.FAILED
+                    record.error = f"outcome finalization failed: {type(exc).__name__}: {exc}"
+
         # Observable evidence events, in deterministic order, before the terminal event.
         if result is not None:
             for tool in result.tool_events:
