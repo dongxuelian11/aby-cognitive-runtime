@@ -2,9 +2,13 @@
 
 ## Project status (load-bearing)
 
-- P0 theory freeze V0.1 was archived on 2026-08-13 but is NOT yet accepted.
-- Do not implement lane / resolver / runner / provider logic until the P0 acceptance tracker (`docs/p0/P0_ACCEPTANCE_TRACKER.md`) is checked off.
-- Skeleton rule: stubs raise `NotImplementedError` and cite the relevant P0 section.
+- Canonical project doctrine, the current P1 architecture hypothesis, and phase
+  gates live in `docs/authority/README.md`; read that index before substantive
+  work and do not duplicate or override it here.
+- P0 theory freeze V0.1 is ACCEPTED / FROZEN; its hypotheses remain
+  scientifically unvalidated.
+- P1.1–P1.4 are accepted/closed. P1.5 and S3 are NOT_STARTED.
+- Verify exact Git/GitHub state and bounded task scope live before implementation.
 
 ## Conventions
 
@@ -21,7 +25,8 @@
 
 ## Key paths
 
+- `docs/authority/README.md` — canonical doctrine/architecture/roadmap index
 - `docs/p0/` — frozen document, acceptance tracker, changelog
-- `docs/design/P1_DESIGN.md` — P1 design draft with open questions (decide here, not ad hoc)
+- `docs/design/P1_DESIGN.md` — historical/working P1 notes subordinate to canonical authority
 - `aby/contracts/` — frozen schemas (executable form of the freeze)
 - `experiments/configs/` — experiment configs (schema NOT yet frozen)

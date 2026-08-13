@@ -1,4 +1,9 @@
-# Example experiment config — S3 ABY Fixed (illustrative skeleton)
+# DEPRECATED_EARLY_P1_S3_SKELETON
+# NOT_CURRENT_ARCHITECTURE_AUTHORITY
+# DO_NOT_IMPLEMENT_S3_FROM_THIS_FILE
+#
+# Example experiment config — S3 ABY Fixed (historical illustrative skeleton)
+# Canonical direction and phase gates: docs/authority/README.md
 
 # NOT FROZEN: this config schema is a P1 draft. See docs/design/P1_DESIGN.md.
 # Frozen requirements it must eventually satisfy:

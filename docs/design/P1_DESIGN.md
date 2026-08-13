@@ -1,8 +1,20 @@
-# P1 — Experimental Harness Design (DRAFT)
+# P1 — Experimental Harness Design (HISTORICAL / WORKING DESIGN)
 
-Status: **DRAFT** — P0 frozen content remains authoritative. P1.1, P1.2, and
-P1.3 are accepted/merged; P1.4 S2 is an implementation candidate pending review.
+Status: P0 frozen content remains authoritative. P1.1 through P1.4 are
+accepted/merged; P1.5 is NOT_STARTED.
 Scope source: P0 §17.
+
+## Canonical P1 architecture authority
+
+Read these before using or extending any P1 design:
+
+- `docs/authority/ABY_TARGET_ARCHITECTURE_P1_HYPOTHESIS_V0_1.md`
+- `docs/authority/ABY_PROJECT_DOCTRINE_V0_1.md`
+- `docs/authority/ABY_PHASE_GATES_AND_ROADMAP_V0_1.md`
+
+Older P1 notes and stubs in this file are historical working design and must not
+override the canonical authority documents. The target geodesic architecture is
+a P1 experimental hypothesis, not P0 authority and not scientific validation.
 
 ## Goal
 
@@ -25,7 +37,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 | `aby/lanes/` | A/B/Y lane stubs | 5 (P1.2+) |
 | `aby/resolver/` | deterministic rule-based resolver, bounded retries | 6 (P1.2+) |
 | `aby/memory/` | committed episode store, versioned structured facts, deterministic keyword retrieval | 14; P1.3 |
-| `aby/baselines/` | accepted S0/S1 implementations, S2 candidate, S3–S4 definitions | 9; P1.2–P1.4 |
+| `aby/baselines/` | accepted S0/S1/S2 controls, historical S3–S4 definitions | 9; P1.2–P1.4 |
 | `aby/cli.py` | status, `experiment validate`, `experiment dry-run` | P1.1 |
 
 ## P1.1 decisions (resolved)
@@ -195,7 +207,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    result metadata and `memory_retrieval` / `memory_commit` events. Frozen P0
    telemetry wire fields are unchanged.
 
-## P1.4 decisions (S2 conventional multi-LLM / MoA candidate)
+## P1.4 decisions (S2 conventional multi-LLM / MoA, accepted/merged)
 
 1. **Reference/adoption gate** — the design follows the bounded conventional
    pattern described by the original Mixture-of-Agents work: independent
