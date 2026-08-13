@@ -14,6 +14,15 @@ Fairness rules (P0 §10) apply to all systems equally.
 from enum import Enum
 
 from ..contracts.telemetry import TelemetryRecord
+from .s0 import (
+    S0_PROMPT_SHA256,
+    S0_PROMPT_VERSION,
+    S0_PROMPT_V0_1,
+    S0_SYSTEM_ID,
+    S0SingleLLM,
+    build_s0,
+    s0_requires_missing_credential,
+)
 
 
 class Baseline(str, Enum):
@@ -41,3 +50,17 @@ class BaselineAdapter:
             "Baseline adapters are P1 implementation work. Blocked until P0 V0.1 "
             "acceptance (docs/p0/P0_ACCEPTANCE_TRACKER.md)."
         )
+
+
+__all__ = [
+    "Baseline",
+    "BASELINE_DESCRIPTIONS",
+    "BaselineAdapter",
+    "S0_PROMPT_SHA256",
+    "S0_PROMPT_VERSION",
+    "S0_PROMPT_V0_1",
+    "S0_SYSTEM_ID",
+    "S0SingleLLM",
+    "build_s0",
+    "s0_requires_missing_credential",
+]

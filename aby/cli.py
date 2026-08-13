@@ -22,6 +22,7 @@ def _cmd_status() -> int:
     print("SCIENTIFICALLY_VALIDATED: no (hypotheses H1-H6 unvalidated / experimental)")
     print("P1 Experimental Harness: authorized (P0 closure merged)")
     print("P1.1 Experimental Harness Foundation: IMPLEMENTED_CANDIDATE (P1 not complete)")
+    print("P1.2 S0 Single-LLM Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
     return 0
 
 
@@ -53,14 +54,32 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
         from .experiments.harness import run_experiment
         from .experiments.system import OFFLINE_SYSTEMS
 
-        system = OFFLINE_SYSTEMS.get(config.system_id)
-        if system is None:
-            print(
-                f"ERROR: no offline deterministic system registered for system_id "
-                f"'{config.system_id}'. Available: {sorted(OFFLINE_SYSTEMS)}",
-                file=sys.stderr,
-            )
-            return 2
+        if config.system_id == "S0":
+            from .baselines.s0 import build_s0, s0_requires_missing_credential
+
+            missing_env = s0_requires_missing_credential(config)
+            if missing_env is not None:
+                print(
+                    f"ERROR: S0 real provider requires environment variable "
+                    f"{missing_env} (not set). Set it or use the offline fake "
+                    f"provider config.",
+                    file=sys.stderr,
+                )
+                return 2
+            try:
+                system = build_s0(config)
+            except ValueError as exc:
+                print(f"ERROR: {exc}", file=sys.stderr)
+                return 2
+        else:
+            system = OFFLINE_SYSTEMS.get(config.system_id)
+            if system is None:
+                print(
+                    f"ERROR: no offline deterministic system registered for system_id "
+                    f"'{config.system_id}'. Available: {sorted(OFFLINE_SYSTEMS)}",
+                    file=sys.stderr,
+                )
+                return 2
         summary = run_experiment(config, system)
         print(f"OK: dry-run {summary.experiment_id} — {len(summary.artifact_dirs)} episode(s)")
         for status_id, status in summary.episode_statuses.items():

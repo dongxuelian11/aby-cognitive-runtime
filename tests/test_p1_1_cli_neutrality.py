@@ -71,7 +71,7 @@ def test_cli_dry_run_produces_artifacts_offline(tmp_path, monkeypatch, capsys):
 def test_cli_dry_run_unknown_system_fails_closed(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     config = tmp_path / "unknown.json"
-    _write_config(config, system_id="S0")  # no offline deterministic impl in P1.1
+    _write_config(config, system_id="S9-unknown")  # no implementation exists
     assert cli.main(["experiment", "dry-run", str(config)]) == 2
     assert "ERROR" in capsys.readouterr().err
 

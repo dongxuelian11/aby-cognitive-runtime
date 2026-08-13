@@ -86,6 +86,49 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    directories are additionally containment-checked to resolve strictly
    inside `<artifacts_root>/experiments/`.
 
+## P1.2 decisions (S0 Single-LLM baseline, PR pending review)
+
+1. **S0 purity definition** — exactly one logical model inference per normal
+   successful episode; one fixed versioned prompt `S0_PROMPT_V0_1` (task-only
+   instruction, no theory/memory/reflection wording); no long-term memory, no
+   RAG, no MoA aggregation, no A/B/Y lane frames, no tools, no judge/verifier
+   second call, no best-of selection. Prior-episode history only if the
+   dataset input itself carries it.
+2. **Provider abstraction** — neutral `LLMProvider.generate(LLMRequest) ->
+   LLMResponse` with generic fields (model, messages, temperature,
+   max_output_tokens, timeout, optional seed, bounded secret-free metadata);
+   normalized response exposes content/provider/model/finish_reason/usage/
+   request id/latency. Shared by all future systems.
+3. **OpenAI-compatible scope** — one vendor-neutral `chat/completions` HTTP
+   adapter (stdlib urllib only; no vendor SDK). Config: base_url, model,
+   api_key_env, timeout, temperature, max_output_tokens, seed.
+4. **Secret handling** — credentials read from environment variables at
+   execution time only; committed config stores only the env-var NAME
+   (`api_key_env = "ABY_LLM_API_KEY"`); keys never enter requests' metadata,
+   responses, events, errors, or artifacts; no silent fake fallback.
+5. **Prompt versioning** — `S0_PROMPT_V0_1` frozen with recorded
+   `prompt_version` + `prompt_sha256` in episode metadata.
+6. **Generation controls** — temperature/max_output_tokens/requested seed
+   recorded honestly; no determinism claim beyond what the provider
+   guarantees; experiment seed is distinct from provider seed.
+7. **Usage semantics** — truthful propagation: input/output/total tokens
+   (when provider reports them), provider latency; frozen `TelemetryRecord`
+   carries tokens + latency + tool_calls=0; `logical_model_calls` and
+   `transport_retries` live in episode metadata + `model_request_*` events
+   (the frozen wire schema has no such fields and must not change).
+8. **Logical-call counting** — `logical_model_calls = 1` per S0 episode;
+   transport retries counted separately and never produce multiple
+   successful candidate answers.
+9. **Retry semantics** — bounded transport retries only (default 1) for
+   transient `NETWORK_ERROR` / `PROVIDER_TIMEOUT`; recorded as
+   `transport_retries`; first success wins.
+10. **Real-provider smoke policy** — exactly one tiny bounded episode only if
+    a credential already exists in the environment; otherwise
+    `NOT_RUN_NO_CREDENTIALS`; the user is never asked for secrets.
+11. **Error normalization** — `AUTHENTICATION_ERROR / RATE_LIMITED /
+    PROVIDER_TIMEOUT / NETWORK_ERROR / INVALID_PROVIDER_RESPONSE /
+    PROVIDER_ERROR`; no secret-bearing data in error messages.
+
 ## Still open for later P1 stages
 
 - MoA baseline (S2) aggregation scheme.
