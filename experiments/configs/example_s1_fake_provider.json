@@ -1,0 +1,28 @@
+{
+  "schema_version": "ABY_EXPERIMENT_CONFIG_V1_0",
+  "experiment_id": "example-s1-fake",
+  "seed": 42,
+  "system_id": "S1",
+  "dataset_id": "synthetic",
+  "task_family": "synthetic_dry_run",
+  "difficulty": "trivial",
+  "risk": "none",
+  "episode_limit": 2,
+  "timeout_seconds": 5.0,
+  "model_config_ref": "",
+  "memory_config_ref": "in-memory-keyword-v0.1",
+  "tool_config_ref": "",
+  "telemetry_enabled": true,
+  "metadata": {
+    "provider": {
+      "type": "fake",
+      "model": "fake-s1"
+    },
+    "memory": {
+      "backend": "in_memory_keyword",
+      "top_k": 5,
+      "max_context_chars": 4000
+    },
+    "description": "Offline deterministic S1 single-LLM baseline with committed process-local keyword memory. No network, credentials, embeddings, or memory model calls."
+  }
+}

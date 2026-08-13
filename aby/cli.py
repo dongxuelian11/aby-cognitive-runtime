@@ -4,7 +4,7 @@ Commands:
 - ``aby status``                        — P0/P1 authority status
 - ``aby experiment validate <config>``  — offline config validation
 - ``aby experiment dry-run <config>``   — offline deterministic dry-run + artifacts
-- ``aby run --config <config>``         — explicit S0 execution path
+- ``aby run --config <config>``         — explicit S0/S1 execution path
 """
 
 import argparse
@@ -22,7 +22,11 @@ def _cmd_status() -> int:
     print("SCIENTIFICALLY_VALIDATED: no (hypotheses H1-H6 unvalidated / experimental)")
     print("P1 Experimental Harness: authorized (P0 closure merged)")
     print("P1.1 Experimental Harness Foundation: IMPLEMENTED_CANDIDATE (P1 not complete)")
+    # Preserve the accepted P1.2 status line for existing consumers, while
+    # recording the subsequent repository authority explicitly.
     print("P1.2 S0 Single-LLM Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
+    print("P1.2 S0 Review State: ACCEPTED / MERGED")
+    print("P1.3 S1 Shared-Memory/RAG Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
     return 0
 
 
@@ -38,6 +42,10 @@ def _validate_config_semantics(config):
         from .baselines.s0 import validate_s0_provider_config
 
         return validate_s0_provider_config(config)
+    if config.system_id == "S1":
+        from .baselines.s1 import validate_s1_config
+
+        return validate_s1_config(config)
     return None
 
 
@@ -68,20 +76,26 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
         from .experiments.harness import run_experiment
         from .experiments.system import OFFLINE_SYSTEMS
 
-        if config.system_id == "S0":
+        if config.system_id in {"S0", "S1"}:
             from .baselines.s0 import build_s0
+            from .baselines.s1 import build_s1
 
-            if provider_spec["type"] != "fake":
+            normalized_provider = (
+                provider_spec
+                if config.system_id == "S0"
+                else provider_spec["provider"]
+            )
+            if normalized_provider["type"] != "fake":
                 print(
                     "ERROR: 'aby experiment dry-run' is offline-only; "
-                    "network-capable S0 providers are forbidden regardless of "
+                    f"network-capable {config.system_id} providers are forbidden regardless of "
                     "credential availability. Use 'aby run --config <config>' "
                     "for explicit real-provider execution.",
                     file=sys.stderr,
                 )
                 return 2
             try:
-                system = build_s0(config)
+                system = build_s0(config) if config.system_id == "S0" else build_s1(config)
             except ValueError as exc:
                 print(f"ERROR: {exc}", file=sys.stderr)
                 return 2
@@ -106,7 +120,7 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    """Run S0 explicitly; non-S0 systems remain reserved for later P1 stages."""
+    """Run S0 or S1 explicitly; later systems remain reserved."""
     try:
         config = _load_config(args.config)
     except FileNotFoundError as exc:
@@ -122,27 +136,35 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"ERROR: invalid experiment config semantics: {exc}", file=sys.stderr)
         return 2
 
-    if config.system_id != "S0":
+    if config.system_id not in {"S0", "S1"}:
         print(
-            "ERROR: 'aby run' currently supports only S0; S1/S2/S3 remain "
+            "ERROR: 'aby run' currently supports only S0 and S1; S2/S3 remain "
             "reserved and are not implemented.",
             file=sys.stderr,
         )
         return 2
 
-    from .baselines.s0 import build_s0, s0_requires_missing_credential
     from .experiments.harness import run_experiment
 
-    missing_env = s0_requires_missing_credential(config)
+    if config.system_id == "S0":
+        from .baselines.s0 import build_s0, s0_requires_missing_credential
+
+        missing_env = s0_requires_missing_credential(config)
+        builder = build_s0
+    else:
+        from .baselines.s1 import build_s1, s1_requires_missing_credential
+
+        missing_env = s1_requires_missing_credential(config)
+        builder = build_s1
     if missing_env is not None:
         print(
-            f"ERROR: S0 real provider requires environment variable {missing_env} "
+            f"ERROR: {config.system_id} real provider requires environment variable {missing_env} "
             "(not set).",
             file=sys.stderr,
         )
         return 2
     try:
-        system = build_s0(config)
+        system = builder(config)
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
@@ -187,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     dry_run_parser.add_argument("config", help="path to experiment config JSON")
 
-    run_parser = sub.add_parser("run", help="run an explicit S0 experiment")
+    run_parser = sub.add_parser("run", help="run an explicit S0 or S1 experiment")
     run_parser.add_argument("--config", required=True, help="experiment config JSON")
 
     args = parser.parse_args(argv)
