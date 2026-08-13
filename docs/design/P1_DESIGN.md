@@ -1,7 +1,8 @@
 # P1 — Experimental Harness Design (HISTORICAL / WORKING DESIGN)
 
 Status: P0 frozen content remains authoritative. P1.1 through P1.4 are
-accepted/merged; P1.5 is NOT_STARTED.
+accepted/merged; both PRE-P1.5 gates are accepted; P1.5 is an
+IMPLEMENTED_CANDIDATE, not an accepted phase.
 Scope source: P0 §17.
 
 ## Canonical P1 architecture authority
@@ -38,6 +39,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 | `aby/resolver/` | deterministic rule-based resolver, bounded retries | 6 (P1.2+) |
 | `aby/memory/` | committed episode store, versioned structured facts, deterministic keyword retrieval | 14; P1.3 |
 | `aby/baselines/` | accepted S0/S1/S2 controls, historical S3–S4 definitions | 9; P1.2–P1.4 |
+| `aby/semantic/` | P1.5 Semantic Atom/IR, shared encoder contract, spherical points, directed local kNN atlas, bounded match candidates, deterministic evidence bundle/artifacts | P1.5 candidate |
 | `aby/cli.py` | status, `experiment validate`, `experiment dry-run` | P1.1 |
 
 ## P1.1 decisions (resolved)
@@ -248,6 +250,64 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 9. **Scientific boundary** — S2 is an auditable control with more logical calls,
    not evidence of superiority. Future comparisons must control tokens, cost,
    latency, correctness, retries, and provider failures.
+
+## P1.5 decisions (Shared Semantic Geometry Foundation, implemented candidate)
+
+1. **P0 adapter boundary** — frozen `MacroFrame`, `ActionFrame`, and
+   `DissipationFrame` remain unchanged. `FrameAtomizer` deterministically maps
+   their existing fields to P1 atoms and preserves source lane, exact field,
+   source index, frame evidence references where present, and confidence.
+2. **Semantic IR V0.1** — `SEMANTIC_ATOM_SCHEMA_VERSION = "p1.5-v0.1"`;
+   required types are `GOAL`, `CONSTRAINT`, `FACT`, `CLAIM`, `ENTITY`,
+   `RELATION`, `INTENT`, `ACTION`, `EVIDENCE`, `UNCERTAINTY`, and the Y-specific
+   `DISSIPATION_TARGET`. Atom identity is a SHA-256 binding over the versioned
+   semantic content and provenance; duplicate values at different source
+   positions remain distinct.
+3. **Explicit field semantics** — A macro state is a `FACT`, relevant history
+   is `EVIDENCE`, constraints/goals retain their named types, interpretations
+   are `CLAIM`, and continuity risk is `UNCERTAINTY`. B intent is `INTENT`,
+   plans/actions/tool requests are `ACTION`, expected result is `CLAIM`, and
+   local uncertainty remains `UNCERTAINTY`. Y conflict/mismatch fields are
+   candidate `CLAIM` evidence; drift/risk/tension fields are `UNCERTAINTY`;
+   resolution targets are non-executable `DISSIPATION_TARGET` indications of
+   where dissipation should be examined. No Y-origin atom is `INTENT` or
+   `ACTION`. `estimated_y` is deliberately not atomized and never changes
+   geometry in P1.5.
+4. **Shared encoder contract** — the contract exposes encoder ID, revision,
+   dimension, algorithm/config fingerprint, and `encode(texts)`. It is separate
+   from `LLMProvider.generate()` and has no chat-provider-specific fields.
+5. **Offline reference encoder** — `reference_hashing/p1.5-v0.1` is pure
+   deterministic SHA-256 signed token hashing. Its fixed label is
+   `REFERENCE_ONLY_NOT_SEMANTIC_QUALITY_EVIDENCE`: it validates replayable
+   infrastructure only and is not evidence that the coordinates are
+   semantically meaningful or that ABY is scientifically effective.
+6. **Base geometry** — all encoder vectors fail closed on dimension mismatch,
+   non-finite values, or zero norm, then receive L2 normalization. Base distance
+   is `arccos(clamp(dot, -1, 1))` under
+   `spherical-arccos-v0.1`; it is not the final ABY metric.
+7. **Local atlas and matching** — `directed-local-knn-v0.1` uses stable atom-ID
+   node order and `(distance, target_atom_id)` tie-breaking. Cross-lane A-B,
+   A-Y, and B-Y outputs use `atlas-local-cross-lane-v0.1`: a pair is eligible
+   only when its directed atlas contains the forward or reverse edge. There is
+   no global-nearest fallback. Evidence records `forward_knn`, `reverse_knn`,
+   `mutual_knn`, locally defined mutual-nearest, rank, and distance; reverse-only
+   adjacency is eligible because the directed atlas relation is still local.
+   Nearest never means equivalent or true.
+8. **Evidence and replay** — the serializable bundle binds atomizer version
+   `frame-atomizer-v0.1`, matcher version, `matches_per_source`, schema, encoder,
+   metric, atlas, k, atoms, points, edges, matches, and a canonical SHA-256
+   fingerprint. Bundle validation separately enforces unique/exact atom-point
+   identity, encoder agreement, canonical atlas edges/ranks, actual endpoint
+   lanes, atlas-local match backing, and canonical matcher output. Dedicated
+   contained artifacts are byte-stable JSON/JSONL with exact payload hashes,
+   transform provenance, and no timestamps or provider objects.
+9. **Adoption gate** — no POT, geomstats, sentence-transformers, PyTorch,
+   NumPy, vector database, GW/FGW framework, or new runtime dependency is
+   adopted. Pure Python is sufficient for this bounded V0 and avoids premature
+   experimental confounds.
+10. **Strict boundary** — P1.5 adds no live A/B/Y calls or parallel runtime, Y
+    penalties/dissipation geometry, Dijkstra/A*/geodesic resolver, S3, or Commit
+    Barrier. Those remain gated future work.
 
 ## Still open for later P1 stages
 

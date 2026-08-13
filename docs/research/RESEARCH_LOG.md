@@ -25,3 +25,37 @@ Decision: accept / reject / continue / modify
 - The latest geodesic coordination architecture was promoted to repository-level
   P1 experimental-hypothesis authority under `docs/authority/`.
 - This promotion is not scientific validation and does not modify frozen P0.
+
+## 2026-08-13 — P1.5 shared semantic geometry foundation implemented candidate
+
+- PRE-P1.5 repository-authority lock and S1 publication/finalization atomicity
+  hardening are accepted. P1.5 is an `IMPLEMENTED_CANDIDATE`, not accepted.
+- Added Semantic Atom / IR `p1.5-v0.1`, deterministic P0-frame atomization, a
+  provider-neutral shared encoder protocol, normalized spherical points,
+  directed local kNN atlas, bounded cross-lane match candidates, and dedicated
+  deterministic geometry evidence artifacts.
+- The offline `reference_hashing/p1.5-v0.1` encoder is explicitly
+  `REFERENCE_ONLY_NOT_SEMANTIC_QUALITY_EVIDENCE`; it supports infrastructure
+  replay tests and makes no semantic-quality or scientific-validity claim.
+- No Y-conditioned geometry, edge penalty, geodesic resolver, live A/B/Y lane,
+  P1.6, S3, or Commit Barrier is implemented. The frozen P0 documents and
+  contracts remain outside the write set.
+- Scientific result: `NOT_RUN`. This candidate creates a coordinate/evidence
+  substrate only; it does not test ABY effectiveness or superiority.
+
+## 2026-08-13 — P1.5 PR #8 bounded semantic/locality correction candidate
+
+- Corrected Y `recommended_resolution_targets` to the non-executable
+  `DISSIPATION_TARGET` atom type. Y emits no `INTENT` or `ACTION`; frozen P0
+  fields remain unchanged and `estimated_y` remains outside geometry.
+- Corrected cross-lane matching to require a forward or reverse directed local
+  kNN atlas edge. Reverse-only adjacency is eligible; absence of both directions
+  yields no candidate and no global fallback.
+- Bound `frame-atomizer-v0.1`, `atlas-local-cross-lane-v0.1`, and
+  `matches_per_source` into bundle fingerprints and artifact manifests.
+- Added relational integrity validation distinct from self-hashing: atom/point
+  identities, encoder provenance, canonical atlas evidence, endpoint lanes, and
+  atlas-local matches must be internally consistent.
+- This is an engineering correction to an unaccepted candidate, not scientific
+  validation. Y costs, geodesic resolution, live lanes, P1.6, and S3 remain
+  unimplemented.

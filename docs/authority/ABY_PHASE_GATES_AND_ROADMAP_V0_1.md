@@ -30,7 +30,9 @@ P1.4: S2 Conventional Multi-LLM / MoA
 PRE_P1_5_AUTHORITY_LOCK_STATUS: ACCEPTED
 PRE-P1.5: Repo-Native Doctrine / Architecture Alignment and Runtime Hardening
 
-P1.5_STATUS: NOT_STARTED
+PRE_P1_5_RUNTIME_HARDENING_STATUS: ACCEPTED
+
+P1.5_STATUS: IMPLEMENTED_CANDIDATE
 P1.5: Shared Semantic Geometry Foundation
 
 P1.6_STATUS: NOT_STARTED
@@ -59,16 +61,19 @@ geodesic coordination hypothesis, or any future S3 implementation.
 
 ```text
 PRE_P1_5_RUNTIME_HARDENING_GATE:
-S1 publication/finalization atomicity is required before P1.5 runtime
-implementation.
+S1 publication/finalization atomicity was independently accepted before P1.5
+runtime implementation.
+
+PRE_P1_5_RUNTIME_HARDENING_STATUS:
+ACCEPTED
 
 P1.5_STATUS:
-NOT_STARTED
+IMPLEMENTED_CANDIDATE
 ```
 
-The authority lock is accepted. This bounded PRE-P1.5 task hardens the accepted
-S1 baseline publication boundary; it is not the future ABY Commit Barrier and
-does not start P1.5 runtime implementation.
+The authority lock and bounded S1 publication/finalization hardening are
+accepted. P1.5 is now an implementation candidate under review, not an accepted
+phase. The S1 publication boundary is not the future ABY Commit Barrier.
 
 ## Gate discipline
 
