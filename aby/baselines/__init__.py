@@ -33,6 +33,23 @@ from .s1 import (
     s1_requires_missing_credential,
     validate_s1_config,
 )
+from .s2 import (
+    DEFAULT_PROPOSER_COUNT,
+    PROPOSAL_EXECUTION,
+    S2_AGGREGATOR_PROMPT_SHA256,
+    S2_AGGREGATOR_PROMPT_VERSION,
+    S2_AGGREGATOR_PROMPT_V0_1,
+    S2_PROPOSER_PROMPT_SHA256,
+    S2_PROPOSER_PROMPT_VERSION,
+    S2_PROPOSER_PROMPT_V0_1,
+    S2_SYSTEM_ID,
+    ProviderCallSpec,
+    S2ConventionalMoA,
+    build_s2,
+    s2_all_providers_fake,
+    s2_missing_credentials,
+    validate_s2_config,
+)
 
 
 class Baseline(str, Enum):
@@ -81,4 +98,19 @@ __all__ = [
     "build_s1",
     "s1_requires_missing_credential",
     "validate_s1_config",
+    "PROPOSAL_EXECUTION",
+    "DEFAULT_PROPOSER_COUNT",
+    "S2_AGGREGATOR_PROMPT_SHA256",
+    "S2_AGGREGATOR_PROMPT_VERSION",
+    "S2_AGGREGATOR_PROMPT_V0_1",
+    "S2_PROPOSER_PROMPT_SHA256",
+    "S2_PROPOSER_PROMPT_VERSION",
+    "S2_PROPOSER_PROMPT_V0_1",
+    "S2_SYSTEM_ID",
+    "ProviderCallSpec",
+    "S2ConventionalMoA",
+    "build_s2",
+    "s2_all_providers_fake",
+    "s2_missing_credentials",
+    "validate_s2_config",
 ]

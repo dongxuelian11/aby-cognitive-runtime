@@ -1,7 +1,7 @@
 # P1 — Experimental Harness Design (DRAFT)
 
-Status: **DRAFT** — P0 frozen content remains authoritative. P1.1 and P1.2 are
-accepted/merged; P1.3 S1 is an implementation candidate pending review.
+Status: **DRAFT** — P0 frozen content remains authoritative. P1.1, P1.2, and
+P1.3 are accepted/merged; P1.4 S2 is an implementation candidate pending review.
 Scope source: P0 §17.
 
 ## Goal
@@ -25,7 +25,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
 | `aby/lanes/` | A/B/Y lane stubs | 5 (P1.2+) |
 | `aby/resolver/` | deterministic rule-based resolver, bounded retries | 6 (P1.2+) |
 | `aby/memory/` | committed episode store, versioned structured facts, deterministic keyword retrieval | 14; P1.3 |
-| `aby/baselines/` | S0 implementation, S1 candidate, S2–S4 definitions | 9; P1.2–P1.3 |
+| `aby/baselines/` | accepted S0/S1 implementations, S2 candidate, S3–S4 definitions | 9; P1.2–P1.4 |
 | `aby/cli.py` | status, `experiment validate`, `experiment dry-run` | P1.1 |
 
 ## P1.1 decisions (resolved)
@@ -154,7 +154,7 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    provider type, required `openai_compat` fields, and bounded numeric settings
    without reading credentials or invoking network transport.
 
-## P1.3 decisions (S1 Single-LLM + Shared Memory/RAG candidate)
+## P1.3 decisions (S1 Single-LLM + Shared Memory/RAG, accepted/merged)
 
 1. **Controlled S1 purity** — S1 reuses the accepted S0 provider/request and
    timeout semantics and performs exactly one logical model inference per normal
@@ -195,9 +195,50 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    result metadata and `memory_retrieval` / `memory_commit` events. Frozen P0
    telemetry wire fields are unchanged.
 
+## P1.4 decisions (S2 conventional multi-LLM / MoA candidate)
+
+1. **Reference/adoption gate** — the design follows the bounded conventional
+   pattern described by the original Mixture-of-Agents work: independent
+   reference responses followed by a final synthesis model. No third-party code,
+   agent/orchestration framework, vendor SDK, or new runtime dependency is used.
+2. **Topology and purity** — configured `N` proposers (`2 <= N <= 8`, default
+   example `N=3`) receive only the original task, then exactly one separately
+   configured aggregator receives the task plus every proposal labeled in stable
+   slot order. Normal accounting is `N + 1` logical calls. There is no persistent
+   context retrieval, tools, semantic lane execution, geometry, critic, verifier,
+   iterative debate, or post-aggregation selection.
+3. **Provider matrix** — every proposer slot and the aggregator use the accepted
+   neutral `LLMProvider` request/response contract and may repeat the same config
+   or use heterogeneous configs. All nested provider settings validate offline;
+   unknown roles/fields/providers and secret-value fields fail closed.
+4. **Execution mode** — P1.4 deliberately records
+   `proposal_execution=sequential_v0`. This avoids concurrent EventLog mutation,
+   preserves deterministic candidate/event order, and makes no parallel-latency
+   claim. The execution policy remains replaceable for a later reviewed fan-out.
+5. **Failure policy** — the first failed proposer fails the episode and prevents
+   all later roles, including aggregation. Aggregator failure fails the episode.
+   Failed proposals are never dropped and no S0/S1 fallback is fabricated.
+6. **Timeout/event safety** — every role's configured request timeout reaches its
+   `LLMRequest`; `ExperimentConfig.timeout_seconds` remains the independent outer
+   runner bound. S2 buffers provider and role events until `EpisodeRunner` accepts
+   a returned result, so a soft-timeout late worker cannot mutate the accepted
+   record, event log, or artifacts.
+7. **Compute evidence** — result metadata records stable proposer/aggregator
+   provider/model identities, role/slot, logical calls, request timeouts,
+   per-call provider and observed latency, transport retries, usage availability,
+   token counts, aggregate totals/completeness, prompt hashes, and bounded
+   candidate content hashes/lengths. Partial usage is explicitly incomplete;
+   measured zero remains distinguishable from unavailable usage.
+8. **Offline boundary** — all-fake S2 validate/dry-run is offline. Mixed/real S2
+   validates offline but dry-run is rejected before provider construction,
+   credential resolution, or network access. Explicit execution uses `aby run`
+   and reports every missing configured credential-variable name without secrets.
+9. **Scientific boundary** — S2 is an auditable control with more logical calls,
+   not evidence of superiority. Future comparisons must control tokens, cost,
+   latency, correctness, retries, and provider failures.
+
 ## Still open for later P1 stages
 
-- MoA baseline (S2) aggregation scheme.
 - qA/qB/qY compute-budget enforcement/measurement.
 - Provider API final shape (sync vs async; tool-call representation).
 - Episode definition and task datasets per task family (real data).
