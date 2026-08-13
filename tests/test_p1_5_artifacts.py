@@ -1,0 +1,65 @@
+import hashlib
+import json
+
+import pytest
+
+from aby.semantic.artifacts import (
+    SEMANTIC_ARTIFACT_FILENAMES,
+    semantic_geometry_artifact_dir,
+    write_semantic_geometry_artifacts,
+)
+from aby.semantic.bundle import SemanticGeometryBundle
+from aby.semantic.fixture import build_reference_fixture_bundle
+
+
+def test_fresh_pipeline_instances_produce_same_bundle_and_fingerprint():
+    first = build_reference_fixture_bundle()
+    second = build_reference_fixture_bundle()
+    assert first.bundle_fingerprint == second.bundle_fingerprint
+    assert first.canonical_json() == second.canonical_json()
+    assert SemanticGeometryBundle.model_validate_json(first.canonical_json()) == first
+
+
+def test_artifacts_are_byte_stable_and_manifest_hashes_are_exact(tmp_path):
+    first_bundle = build_reference_fixture_bundle()
+    second_bundle = build_reference_fixture_bundle()
+    first_dir, first_evidence = write_semantic_geometry_artifacts(
+        tmp_path / "run-a", artifact_id="fixture", bundle=first_bundle
+    )
+    second_dir, second_evidence = write_semantic_geometry_artifacts(
+        tmp_path / "run-b", artifact_id="fixture", bundle=second_bundle
+    )
+    assert first_evidence == second_evidence
+    assert {path.name for path in first_dir.iterdir()} == set(SEMANTIC_ARTIFACT_FILENAMES)
+    for filename in SEMANTIC_ARTIFACT_FILENAMES:
+        assert (first_dir / filename).read_bytes() == (second_dir / filename).read_bytes()
+
+    manifest = json.loads((first_dir / "semantic_geometry_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["bundle_fingerprint"] == first_bundle.bundle_fingerprint
+    for filename, expected_hash in manifest["artifact_file_sha256"].items():
+        assert hashlib.sha256((first_dir / filename).read_bytes()).hexdigest() == expected_hash
+    assert set(manifest["artifact_file_sha256"]) == {
+        "semantic_atoms.jsonl", "semantic_points.json", "semantic_atlas.json", "semantic_matches.json"
+    }
+
+
+def test_artifacts_are_dedicated_secret_free_serializable_evidence(tmp_path):
+    bundle = build_reference_fixture_bundle()
+    directory, _ = write_semantic_geometry_artifacts(
+        tmp_path, artifact_id="fixture", bundle=bundle
+    )
+    combined = b"".join((directory / name).read_bytes() for name in SEMANTIC_ARTIFACT_FILENAMES)
+    lowered = combined.lower()
+    for forbidden in (b"api_key", b"authorization", b"bearer ", b"llmprovider", b"openai"):
+        assert forbidden not in lowered
+
+
+@pytest.mark.parametrize("artifact_id", ["", ".", "..", "../escape", "a/b", "a\\b"])
+def test_artifact_path_containment_rejects_unsafe_ids(tmp_path, artifact_id):
+    with pytest.raises(ValueError):
+        semantic_geometry_artifact_dir(tmp_path, artifact_id)
+
+
+def test_artifact_directory_resolves_beneath_semantic_root(tmp_path):
+    directory = semantic_geometry_artifact_dir(tmp_path, "fixture-1.0")
+    assert directory.is_relative_to((tmp_path / "semantic_geometry").resolve())
