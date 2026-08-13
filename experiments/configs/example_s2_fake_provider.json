@@ -1,0 +1,31 @@
+{
+  "schema_version": "ABY_EXPERIMENT_CONFIG_V1_0",
+  "experiment_id": "example-s2-fake",
+  "seed": 42,
+  "system_id": "S2",
+  "dataset_id": "synthetic",
+  "task_family": "synthetic_dry_run",
+  "difficulty": "trivial",
+  "risk": "none",
+  "episode_limit": 2,
+  "timeout_seconds": 10.0,
+  "model_config_ref": "s2-moa-v0.1",
+  "memory_config_ref": "none",
+  "tool_config_ref": "none",
+  "telemetry_enabled": true,
+  "metadata": {
+    "moa": {
+      "proposer_count": 3,
+      "proposal_execution": "sequential_v0",
+      "proposers": [
+        { "provider": { "type": "fake", "model": "fake-s2-proposer-0", "seed": 100 } },
+        { "provider": { "type": "fake", "model": "fake-s2-proposer-1", "seed": 101 } },
+        { "provider": { "type": "fake", "model": "fake-s2-proposer-2", "seed": 102 } }
+      ],
+      "aggregator": {
+        "provider": { "type": "fake", "model": "fake-s2-aggregator", "seed": 200 }
+      }
+    },
+    "description": "Offline deterministic S2: three independent fake proposals followed by one fake aggregation call. No memory, tools, or semantic lanes."
+  }
+}

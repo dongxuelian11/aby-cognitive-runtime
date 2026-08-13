@@ -4,7 +4,7 @@ Commands:
 - ``aby status``                        — P0/P1 authority status
 - ``aby experiment validate <config>``  — offline config validation
 - ``aby experiment dry-run <config>``   — offline deterministic dry-run + artifacts
-- ``aby run --config <config>``         — explicit S0/S1 execution path
+- ``aby run --config <config>``         — explicit S0/S1/S2 execution path
 """
 
 import argparse
@@ -27,6 +27,8 @@ def _cmd_status() -> int:
     print("P1.2 S0 Single-LLM Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
     print("P1.2 S0 Review State: ACCEPTED / MERGED")
     print("P1.3 S1 Shared-Memory/RAG Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
+    print("P1.3 S1 Review State: ACCEPTED / MERGED")
+    print("P1.4 S2 Conventional MoA Baseline: IMPLEMENTED_CANDIDATE (P1 not complete)")
     return 0
 
 
@@ -46,6 +48,10 @@ def _validate_config_semantics(config):
         from .baselines.s1 import validate_s1_config
 
         return validate_s1_config(config)
+    if config.system_id == "S2":
+        from .baselines.s2 import validate_s2_config
+
+        return validate_s2_config(config)
     return None
 
 
@@ -76,16 +82,18 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
         from .experiments.harness import run_experiment
         from .experiments.system import OFFLINE_SYSTEMS
 
-        if config.system_id in {"S0", "S1"}:
+        if config.system_id in {"S0", "S1", "S2"}:
             from .baselines.s0 import build_s0
             from .baselines.s1 import build_s1
+            from .baselines.s2 import build_s2, s2_all_providers_fake
 
-            normalized_provider = (
-                provider_spec
-                if config.system_id == "S0"
-                else provider_spec["provider"]
-            )
-            if normalized_provider["type"] != "fake":
+            if config.system_id == "S0":
+                offline_only = provider_spec["type"] == "fake"
+            elif config.system_id == "S1":
+                offline_only = provider_spec["provider"]["type"] == "fake"
+            else:
+                offline_only = s2_all_providers_fake(config)
+            if not offline_only:
                 print(
                     "ERROR: 'aby experiment dry-run' is offline-only; "
                     f"network-capable {config.system_id} providers are forbidden regardless of "
@@ -95,7 +103,8 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
                 )
                 return 2
             try:
-                system = build_s0(config) if config.system_id == "S0" else build_s1(config)
+                builders = {"S0": build_s0, "S1": build_s1, "S2": build_s2}
+                system = builders[config.system_id](config)
             except ValueError as exc:
                 print(f"ERROR: {exc}", file=sys.stderr)
                 return 2
@@ -120,7 +129,7 @@ def _cmd_experiment(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    """Run S0 or S1 explicitly; later systems remain reserved."""
+    """Run S0, S1, or S2 explicitly; later systems remain reserved."""
     try:
         config = _load_config(args.config)
     except FileNotFoundError as exc:
@@ -136,9 +145,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"ERROR: invalid experiment config semantics: {exc}", file=sys.stderr)
         return 2
 
-    if config.system_id not in {"S0", "S1"}:
+    if config.system_id not in {"S0", "S1", "S2"}:
         print(
-            "ERROR: 'aby run' currently supports only S0 and S1; S2/S3 remain "
+            "ERROR: 'aby run' currently supports only S0, S1, and S2; S3 remains "
             "reserved and are not implemented.",
             file=sys.stderr,
         )
@@ -151,15 +160,23 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
         missing_env = s0_requires_missing_credential(config)
         builder = build_s0
-    else:
+    elif config.system_id == "S1":
         from .baselines.s1 import build_s1, s1_requires_missing_credential
 
         missing_env = s1_requires_missing_credential(config)
         builder = build_s1
-    if missing_env is not None:
+    else:
+        from .baselines.s2 import build_s2, s2_missing_credentials
+
+        missing_env = s2_missing_credentials(config)
+        builder = build_s2
+    if missing_env:
+        missing_names = (
+            ", ".join(missing_env) if isinstance(missing_env, list) else missing_env
+        )
         print(
-            f"ERROR: {config.system_id} real provider requires environment variable {missing_env} "
-            "(not set).",
+            f"ERROR: {config.system_id} real provider requires environment variable(s) "
+            f"{missing_names} (not set).",
             file=sys.stderr,
         )
         return 2
@@ -209,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     dry_run_parser.add_argument("config", help="path to experiment config JSON")
 
-    run_parser = sub.add_parser("run", help="run an explicit S0 or S1 experiment")
+    run_parser = sub.add_parser("run", help="run an explicit S0, S1, or S2 experiment")
     run_parser.add_argument("--config", required=True, help="experiment config JSON")
 
     args = parser.parse_args(argv)

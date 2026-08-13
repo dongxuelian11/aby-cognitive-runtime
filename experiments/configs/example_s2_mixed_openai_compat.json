@@ -1,0 +1,53 @@
+{
+  "schema_version": "ABY_EXPERIMENT_CONFIG_V1_0",
+  "experiment_id": "example-s2-mixed-openai-compat",
+  "seed": 42,
+  "system_id": "S2",
+  "dataset_id": "synthetic",
+  "task_family": "synthetic_real_run",
+  "difficulty": "trivial",
+  "risk": "none",
+  "episode_limit": 1,
+  "timeout_seconds": 30.0,
+  "model_config_ref": "s2-moa-v0.1",
+  "memory_config_ref": "none",
+  "tool_config_ref": "none",
+  "telemetry_enabled": true,
+  "metadata": {
+    "moa": {
+      "proposer_count": 3,
+      "proposal_execution": "sequential_v0",
+      "proposers": [
+        { "provider": { "type": "fake", "model": "fake-s2-proposer-0", "seed": 100 } },
+        {
+          "provider": {
+            "type": "openai_compat",
+            "base_url": "http://localhost:8000/v1",
+            "model": "your-proposer-model",
+            "api_key_env": "ABY_S2_PROPOSER_API_KEY",
+            "timeout_seconds": 15.0,
+            "temperature": 0.0,
+            "max_output_tokens": 128,
+            "seed": null,
+            "max_retries": 1
+          }
+        },
+        { "provider": { "type": "fake", "model": "fake-s2-proposer-2", "seed": 102 } }
+      ],
+      "aggregator": {
+        "provider": {
+          "type": "openai_compat",
+          "base_url": "http://localhost:8000/v1",
+          "model": "your-aggregator-model",
+          "api_key_env": "ABY_S2_AGGREGATOR_API_KEY",
+          "timeout_seconds": 20.0,
+          "temperature": 0.0,
+          "max_output_tokens": 128,
+          "seed": null,
+          "max_retries": 1
+        }
+      }
+    },
+    "description": "Mixed S2 validation example. Validation is offline; dry-run rejects it before credential resolution or transport; explicit execution requires both configured credential variables."
+  }
+}
