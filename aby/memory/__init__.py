@@ -14,6 +14,7 @@ import json
 import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from threading import RLock
 from typing import Any, Literal
 
@@ -57,6 +58,15 @@ class EpisodeMemory(BaseModel):
     committed: Literal[True] = True
 
 
+@dataclass(frozen=True, slots=True)
+class EpisodePublicationReceipt:
+    """Capability to roll back only the exact episode item just published."""
+
+    item: EpisodeMemory
+    created_by_this_publication: bool
+    _rollback_token: object | None = field(default=None, repr=False, compare=False)
+
+
 class FactVersion(BaseModel):
     """One immutable value in an auditable structured-fact history."""
 
@@ -93,6 +103,16 @@ class SharedMemory:
 
     backend_id = "abstract"
 
+    def publish_episode(
+        self, episode_id: str, events: Any
+    ) -> EpisodePublicationReceipt:
+        raise NotImplementedError
+
+    def rollback_episode_publication(
+        self, receipt: EpisodePublicationReceipt
+    ) -> bool:
+        raise NotImplementedError
+
     def store_episode(self, episode_id: str, events: Any) -> EpisodeMemory:
         raise NotImplementedError
 
@@ -118,19 +138,27 @@ class InMemoryKeywordMemory(SharedMemory):
 
     There is intentionally no staging area in this backend.  A detached S1
     worker cannot publish anything because it receives only read methods and
-    returns a proposal to ``EpisodeRunner``.  ``store_episode`` is the atomic
-    publication boundary called by the accepted runner outcome finalizer.
+    returns a proposal to ``EpisodeRunner``.  ``publish_episode`` is the atomic
+    receipt-producing boundary called by the accepted runner outcome finalizer;
+    ``store_episode`` preserves the original item-returning public behavior.
     """
 
     backend_id = MEMORY_BACKEND_ID
 
     def __init__(self) -> None:
         self._episodes: dict[str, EpisodeMemory] = {}
+        self._episode_publication_tokens: dict[str, object] = {}
         self._facts: dict[str, list[FactVersion]] = {}
         self._lock = RLock()
 
     def store_episode(self, episode_id: str, events: Any) -> EpisodeMemory:
-        """Atomically publish one committed episode; never overwrite it."""
+        """Preserve the public item-returning API over receipt publication."""
+        return self.publish_episode(episode_id, events).item
+
+    def publish_episode(
+        self, episode_id: str, events: Any
+    ) -> EpisodePublicationReceipt:
+        """Publish atomically and report whether this call created the item."""
         if not isinstance(episode_id, str) or not episode_id:
             raise ValueError("episode_id must be a non-empty string")
         if isinstance(events, EpisodeMemory):
@@ -164,9 +192,43 @@ class InMemoryKeywordMemory(SharedMemory):
                     raise ValueError(
                         f"committed episode {episode_id!r} cannot be overwritten"
                     )
-                return existing.model_copy(deep=True)
+                return EpisodePublicationReceipt(
+                    item=existing.model_copy(deep=True),
+                    created_by_this_publication=False,
+                )
+            rollback_token = object()
             self._episodes[episode_id] = item
-            return item.model_copy(deep=True)
+            self._episode_publication_tokens[episode_id] = rollback_token
+            return EpisodePublicationReceipt(
+                item=item.model_copy(deep=True),
+                created_by_this_publication=True,
+                _rollback_token=rollback_token,
+            )
+
+    def rollback_episode_publication(
+        self, receipt: EpisodePublicationReceipt
+    ) -> bool:
+        """Remove only the exact item created by an authentic new receipt."""
+        if not isinstance(receipt, EpisodePublicationReceipt):
+            raise TypeError("receipt must be an EpisodePublicationReceipt")
+        if (
+            not receipt.created_by_this_publication
+            or receipt._rollback_token is None
+        ):
+            return False
+        episode_id = receipt.item.episode_id
+        with self._lock:
+            current = self._episodes.get(episode_id)
+            current_token = self._episode_publication_tokens.get(episode_id)
+            if (
+                current is None
+                or current != receipt.item
+                or current_token is not receipt._rollback_token
+            ):
+                return False
+            del self._episodes[episode_id]
+            del self._episode_publication_tokens[episode_id]
+            return True
 
     def load_episode(self, episode_id: str) -> EpisodeMemory | None:
         with self._lock:
@@ -298,6 +360,7 @@ __all__ = [
     "MAX_MEMORY_TOP_K",
     "MAX_MEMORY_CONTEXT_CHARS",
     "EpisodeMemory",
+    "EpisodePublicationReceipt",
     "FactVersion",
     "FactHistory",
     "MemorySearchHit",

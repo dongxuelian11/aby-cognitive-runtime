@@ -27,8 +27,8 @@ P1.3: S1 Single LLM + Shared Memory/RAG
 P1.4_STATUS: ACCEPTED
 P1.4: S2 Conventional Multi-LLM / MoA
 
-PRE_P1.5_STATUS: CURRENT_AUTHORITY_LOCK_WORK
-PRE-P1.5: Repo-Native Doctrine / Architecture Alignment
+PRE_P1_5_AUTHORITY_LOCK_STATUS: ACCEPTED
+PRE-P1.5: Repo-Native Doctrine / Architecture Alignment and Runtime Hardening
 
 P1.5_STATUS: NOT_STARTED
 P1.5: Shared Semantic Geometry Foundation
@@ -55,16 +55,20 @@ P2: Adaptive ABY / Compute Control
 The baseline foundation S0/S1/S2 is complete. This does not validate ABY, the
 geodesic coordination hypothesis, or any future S3 implementation.
 
-## Required pre-P1.5 runtime hardening
+## PRE-P1.5 runtime hardening gate
 
 ```text
-PRE-P1.5 RUNTIME HARDENING:
-S1 publication/finalization atomicity must be corrected before semantic-geometry
-implementation is treated as ready.
-STATUS: REQUIRED_NOT_IMPLEMENTED_IN_AUTHORITY_LOCK_TASK
+PRE_P1_5_RUNTIME_HARDENING_GATE:
+S1 publication/finalization atomicity is required before P1.5 runtime
+implementation.
+
+P1.5_STATUS:
+NOT_STARTED
 ```
 
-This authority-lock task records the hardening item but must not implement it.
+The authority lock is accepted. This bounded PRE-P1.5 task hardens the accepted
+S1 baseline publication boundary; it is not the future ABY Commit Barrier and
+does not start P1.5 runtime implementation.
 
 ## Gate discipline
 

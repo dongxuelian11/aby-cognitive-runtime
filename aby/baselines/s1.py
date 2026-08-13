@@ -258,21 +258,28 @@ class S1SingleLLM:
         if outcome == "COMPLETED" and result.status == "SUCCEEDED":
             if not isinstance(proposal, Mapping):
                 raise ValueError("completed S1 episode is missing its memory proposal")
-            item = self.memory.store_episode(episode_input.episode_id, proposal)
-            metadata["memory_writes_committed"] = 1
-            metadata["committed_memory_id"] = item.item_id
-            event_log.append(
-                Event(
-                    episode_id=episode_input.episode_id,
-                    kind="memory_commit",
-                    payload={
-                        "backend": self.memory.backend_id,
-                        "memory_writes_committed": 1,
-                        "committed_memory_id": item.item_id,
-                    },
+            receipt = self.memory.publish_episode(episode_input.episode_id, proposal)
+            try:
+                item = receipt.item
+                metadata["memory_writes_committed"] = 1
+                metadata["committed_memory_id"] = item.item_id
+                event_log.append(
+                    Event(
+                        episode_id=episode_input.episode_id,
+                        kind="memory_commit",
+                        payload={
+                            "backend": self.memory.backend_id,
+                            "memory_writes_committed": 1,
+                            "committed_memory_id": item.item_id,
+                        },
+                    )
                 )
-            )
-        result.metadata = metadata
+                result.metadata = metadata
+            except Exception:
+                self.memory.rollback_episode_publication(receipt)
+                raise
+        else:
+            result.metadata = metadata
         return result
 
 

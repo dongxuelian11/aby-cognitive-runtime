@@ -105,10 +105,12 @@ def test_roadmap_locks_accepted_baselines_and_future_p1_5_gate():
         "P1.2_STATUS: ACCEPTED",
         "P1.3_STATUS: ACCEPTED",
         "P1.4_STATUS: ACCEPTED",
+        "PRE_P1_5_AUTHORITY_LOCK_STATUS: ACCEPTED",
+        "PRE_P1_5_RUNTIME_HARDENING_GATE:",
         "P1.5_STATUS: NOT_STARTED",
-        "PRE-P1.5 RUNTIME HARDENING",
     ):
         assert marker in roadmap
+    assert "PRE_P1.5_STATUS: CURRENT_AUTHORITY_LOCK_WORK" not in roadmap
 
 
 def test_historical_s3_skeleton_is_unmistakably_non_authoritative():
