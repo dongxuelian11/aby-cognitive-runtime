@@ -12,8 +12,8 @@ ABY tests whether separating cognition into three heterogeneous lanes — **A** 
 | ----- | ------- | ------ |
 | P0 | Theory freeze V0.1 | Archived 2026-08-13 · ACCEPTED (15/15, independent exact-source review PASS) |
 | P1 baseline foundation | Experimental harness + S0/S1/S2 controls | P1.1–P1.4 accepted/merged |
-| PRE-P1.5 | Authority lock accepted; S1 publication atomicity hardening gate | Current bounded focus |
-| P1.5 | Shared Semantic Geometry Foundation | NOT_STARTED |
+| PRE-P1.5 | Authority lock + S1 publication atomicity hardening | ACCEPTED |
+| P1.5 | Shared Semantic Geometry Foundation | IMPLEMENTED_CANDIDATE (not accepted) |
 | P2–P5 | (to be defined later) | — |
 
 Status distinctions:
@@ -23,8 +23,8 @@ P0 Theory Freeze V0.1:      ACCEPTED (authoritative P0 baseline)
 P0 scientific hypotheses:   UNVALIDATED / EXPERIMENTAL (H1–H6 untested)
 P1.1–P1.4 baseline set:      ACCEPTED / CLOSED
 PRE-P1.5 authority lock:      ACCEPTED
-PRE-P1.5 runtime hardening:   REQUIRED BEFORE P1.5
-P1.5 runtime implementation: NOT_STARTED
+PRE-P1.5 runtime hardening:   ACCEPTED
+P1.5 runtime implementation: IMPLEMENTED_CANDIDATE / NOT ACCEPTED
 P1 geodesic architecture:    EXPERIMENTAL HYPOTHESIS / NOT P0 AUTHORITY /
                              NOT SCIENTIFICALLY VALIDATED
 License:                    Apache-2.0
@@ -80,6 +80,15 @@ default config, followed by exactly one aggregator call. P1.4 records truthful
 per-call and aggregate usage/latency/retry evidence and uses deterministic
 `sequential_v0` proposal execution. It adds no persistent retrieval, tools,
 semantic lanes, geometry, or adaptive compute, and makes no superiority claim.
+
+P1.5 is an implementation candidate for the shared semantic-geometry
+foundation. It adapts frozen P0 frames into typed P1 semantic atoms, uses a
+provider-neutral encoder contract, normalizes points onto a spherical base
+geometry, builds a directed local kNN atlas, and emits bounded cross-lane match
+candidates plus deterministic evidence artifacts. The offline hashing encoder
+is reference-only infrastructure and is not semantic-quality or scientific
+evidence. P1.5 does not implement Y-conditioned edge costs, a geodesic resolver,
+live A/B/Y lanes, S3, or a Commit Barrier.
 
 ## Quickstart
 
