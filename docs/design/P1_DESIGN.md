@@ -136,10 +136,12 @@ Run S0 / S1 / S2 / S3 on the same task dataset under controlled, recorded comput
    before credential resolution or transport, even when its credential exists.
    Explicit S0 execution uses `aby run --config <config>`; non-S0 systems remain
    reserved.
-2. **Two distinct timeouts** — `metadata.provider.timeout_seconds` is the exact
-   HTTP transport timeout used by `OpenAICompatProvider`. Top-level
-   `ExperimentConfig.timeout_seconds` remains the independent outer bound applied
-   by `EpisodeRunner`; neither silently substitutes for the other.
+2. **Two distinct timeouts, one request authority** —
+   `metadata.provider.timeout_seconds` is normalized by S0 into
+   `LLMRequest.timeout_seconds`, and `OpenAICompatProvider` passes that exact
+   request value to HTTP transport. Top-level `ExperimentConfig.timeout_seconds`
+   remains the independent outer bound applied by `EpisodeRunner`; neither
+   silently substitutes for the other.
 3. **Usage availability** — provider responses and S0 result metadata carry
    `usage_available`. Missing provider usage remains numerically compatible with
    the frozen telemetry fields but is explicitly marked unavailable, never

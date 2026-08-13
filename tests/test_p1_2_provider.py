@@ -24,7 +24,11 @@ API_KEY_ENV = "ABY_LLM_API_KEY"
 SECRET = "sk-test-secret-xyz"
 
 
-def _req(model: str = "test-model", seed: int | None = 7) -> LLMRequest:
+def _req(
+    model: str = "test-model",
+    seed: int | None = 7,
+    timeout_seconds: float = 30.0,
+) -> LLMRequest:
     return LLMRequest(
         model=model,
         messages=[
@@ -33,6 +37,7 @@ def _req(model: str = "test-model", seed: int | None = 7) -> LLMRequest:
         ],
         temperature=0.0,
         max_output_tokens=64,
+        timeout_seconds=timeout_seconds,
         seed=seed,
     )
 
@@ -130,7 +135,11 @@ def test_real_provider_request_serialization(monkeypatch):
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     monkeypatch.setenv(API_KEY_ENV, SECRET)
-    response = _make_provider(timeout_seconds=7.25).generate(_req())
+    # Deliberately diverge provider default and request values. The request is
+    # the single transport authority for an actual inference.
+    response = _make_provider(timeout_seconds=99.0).generate(
+        _req(timeout_seconds=7.25)
+    )
 
     req = captured["req"]
     assert req.full_url == "http://example.test/v1/chat/completions"

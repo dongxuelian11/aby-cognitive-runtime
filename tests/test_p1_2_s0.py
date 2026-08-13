@@ -1,6 +1,7 @@
 """P1.2 S0 Single-LLM baseline tests: purity, integration, secrets, regressions."""
 
 import json
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -74,6 +75,20 @@ class _NoUsageProvider(FakeProvider):
         )
 
 
+class _FakeHTTPResponse:
+    def __init__(self, payload: bytes):
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self) -> bytes:
+        return self._payload
+
+
 # --- S0 purity (§10, §11) ----------------------------------------------------
 
 
@@ -99,6 +114,61 @@ def test_s0_actual_request_has_stable_system_prompt_and_task_only_in_user_messag
     assert request.messages[1].role == "user"
     assert request.messages[1].content == "say hello"
     assert sum(message.content.count("say hello") for message in request.messages) == 1
+
+
+def test_s0_propagates_configured_provider_timeout_into_request():
+    provider = _CountingProvider()
+    result = S0SingleLLM(
+        provider, provider_timeout_seconds=7.25
+    ).run_episode(_input())
+    assert result.status == "SUCCEEDED"
+    assert provider.calls == 1
+    assert provider.last_request.timeout_seconds == 7.25
+    assert result.metadata["provider_timeout_seconds"] == 7.25
+
+
+def test_build_s0_timeout_reaches_openai_compatible_http_transport(
+    monkeypatch,
+):
+    captured = {}
+
+    def fake_urlopen(request, timeout=None):
+        captured["timeout"] = timeout
+        return _FakeHTTPResponse(
+            json.dumps(
+                {
+                    "id": "req-timeout-chain",
+                    "model": "test-model",
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": "ok"},
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 2,
+                        "completion_tokens": 1,
+                        "total_tokens": 3,
+                    },
+                }
+            ).encode("utf-8")
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setenv(API_KEY_ENV, SECRET)
+    config = _config(
+        type="openai_compat",
+        base_url="http://example.test/v1",
+        model="test-model",
+        api_key_env=API_KEY_ENV,
+        timeout_seconds=7.25,
+        max_retries=0,
+    )
+    system = build_s0(config)
+    result = system.run_episode(_input())
+    assert result.status == "SUCCEEDED"
+    assert result.metadata["provider_timeout_seconds"] == 7.25
+    assert captured["timeout"] == 7.25
 
 
 def test_s0_normalized_result_and_prompt_evidence():
@@ -208,11 +278,15 @@ def test_s0_usage_unavailable_status_persists_to_result_artifact(tmp_path):
     assert result["metadata"]["total_tokens"] == 0
 
 
-def test_s0_timeout_regression_preserved():
-    system = S0SingleLLM(FakeProvider(sleep_seconds=0.6))
+def test_episode_timeout_remains_separate_from_provider_request_timeout():
+    system = S0SingleLLM(
+        FakeProvider(sleep_seconds=0.6), provider_timeout_seconds=7.25
+    )
     log = EventLog()
     record = EpisodeRunner().run(system, _input(), timeout_seconds=0.05, event_log=log)
     assert record.status == EpisodeStatus.TIMED_OUT
+    assert record.timeout_seconds == 0.05
+    assert system.provider_timeout_seconds == 7.25
 
 
 def test_build_s0_unknown_provider_type_fails_closed():

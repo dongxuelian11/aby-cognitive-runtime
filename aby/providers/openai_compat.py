@@ -87,10 +87,10 @@ class OpenAICompatProvider(LLMProvider):
                 {"provider": self.name, "model": self.model, "attempt": attempts},
             )
             try:
-                # Provider transport timeout is configured independently from
-                # the outer EpisodeRunner timeout. The provider value controls
-                # the HTTP call exactly; the runner still bounds the episode.
-                response = self._post(payload, api_key, self.timeout_seconds)
+                # The request timeout is the single HTTP transport authority.
+                # S0 normalizes provider config into this request field; the
+                # outer EpisodeRunner timeout remains a separate bound.
+                response = self._post(payload, api_key, request.timeout_seconds)
                 response.transport_retries = attempts - 1
                 emit(
                     event_sink,
