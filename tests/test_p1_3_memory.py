@@ -1,5 +1,7 @@
 """P1.3 committed in-memory keyword backend tests."""
 
+from dataclasses import replace
+
 import pytest
 
 from aby.memory import InMemoryKeywordMemory
@@ -30,6 +32,45 @@ def test_committed_episode_is_idempotent_but_cannot_be_overwritten():
     assert memory.committed_episode_count == 1
     with pytest.raises(ValueError, match="cannot be overwritten"):
         _store(memory, "ep-1", "conflicting task")
+
+
+def test_created_publication_receipt_rolls_back_only_its_exact_item():
+    memory = InMemoryKeywordMemory()
+    receipt = memory.publish_episode(
+        "ep-1",
+        {"task_family": "family", "task": "atomic marker", "answer": "answer"},
+    )
+    assert receipt.created_by_this_publication is True
+    assert memory.committed_episode_count == 1
+
+    mismatched_item = receipt.item.model_copy(
+        update={"item_id": "mem-episode-mismatched"}
+    )
+    mismatched_receipt = replace(receipt, item=mismatched_item)
+    assert memory.rollback_episode_publication(mismatched_receipt) is False
+    assert memory.load_episode("ep-1") == receipt.item
+
+    assert memory.rollback_episode_publication(receipt) is True
+    assert memory.load_episode("ep-1") is None
+    assert memory.rollback_episode_publication(receipt) is False
+
+
+def test_idempotent_publication_receipt_cannot_delete_preexisting_item():
+    memory = InMemoryKeywordMemory()
+    existing = _store(memory, "ep-1", "historical marker")
+    receipt = memory.publish_episode(
+        "ep-1",
+        {
+            "task_family": existing.task_family,
+            "task": existing.task,
+            "answer": existing.answer,
+        },
+    )
+    assert receipt.created_by_this_publication is False
+    assert receipt.item.item_id == existing.item_id
+    assert memory.rollback_episode_publication(receipt) is False
+    assert memory.load_episode("ep-1") == existing
+    assert memory.committed_episode_count == 1
 
 
 def test_structured_fact_same_value_is_idempotent_and_conflict_is_preserved():

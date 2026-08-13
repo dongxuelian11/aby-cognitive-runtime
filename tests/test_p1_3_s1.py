@@ -87,10 +87,101 @@ class _UsageProvider(_CountingProvider):
         )
 
 
+class _FailOnMemoryCommitEventLog(EventLog):
+    def append(self, event):
+        if event.kind == "memory_commit":
+            raise RuntimeError("injected memory_commit append failure")
+        return super().append(event)
+
+
+class _FailBeforeMemoryPublicationEventLog(EventLog):
+    def append(self, event):
+        if event.kind == "memory_retrieval":
+            raise RuntimeError("injected pre-publication finalizer failure")
+        return super().append(event)
+
+
 def _run(system, episode_input, timeout=5.0):
     log = EventLog()
     record = EpisodeRunner().run(system, episode_input, timeout, log)
     return record, log
+
+
+def test_finalizer_failure_after_new_publication_rolls_back_memory():
+    memory = InMemoryKeywordMemory()
+    provider = _UsageProvider()
+    system = S1SingleLLM(provider, memory=memory)
+    episode_input = _input(task="unique atomic rollback marker")
+    log = _FailOnMemoryCommitEventLog()
+
+    record = EpisodeRunner().run(system, episode_input, 5.0, log)
+
+    assert record.status == EpisodeStatus.FAILED
+    assert "outcome finalization failed" in record.error
+    assert "injected memory_commit append failure" in record.error
+    assert provider.calls == 1
+    assert memory.committed_episode_count == 0
+    assert memory.load_episode(episode_input.episode_id) is None
+    assert memory.search("unique atomic rollback marker", k=5) == []
+    assert "memory_commit" not in [
+        event.kind for event in log.replay(episode_input.episode_id)
+    ]
+
+
+def test_finalizer_failure_before_publication_leaves_zero_memory():
+    memory = InMemoryKeywordMemory()
+    provider = _UsageProvider()
+    system = S1SingleLLM(provider, memory=memory)
+    episode_input = _input(task="unique pre-publication failure marker")
+    log = _FailBeforeMemoryPublicationEventLog()
+
+    record = EpisodeRunner().run(system, episode_input, 5.0, log)
+
+    assert record.status == EpisodeStatus.FAILED
+    assert "outcome finalization failed" in record.error
+    assert "injected pre-publication finalizer failure" in record.error
+    assert provider.calls == 1
+    assert memory.committed_episode_count == 0
+    assert memory.load_episode(episode_input.episode_id) is None
+    assert memory.search("unique pre-publication failure marker", k=5) == []
+    assert "memory_commit" not in [
+        event.kind for event in log.replay(episode_input.episode_id)
+    ]
+
+
+def test_finalizer_failure_does_not_delete_preexisting_identical_memory():
+    memory = InMemoryKeywordMemory()
+    episode_input = _input(task="unique preserved history marker")
+    existing = memory.store_episode(
+        episode_input.episode_id,
+        {
+            "task_family": episode_input.task_family,
+            "task": episode_input.input["task"],
+            "answer": "observed",
+        },
+    )
+    provider = _UsageProvider()
+    system = S1SingleLLM(provider, memory=memory)
+    log = _FailOnMemoryCommitEventLog()
+
+    record = EpisodeRunner().run(system, episode_input, 5.0, log)
+
+    assert record.status == EpisodeStatus.FAILED
+    assert "outcome finalization failed" in record.error
+    assert "injected memory_commit append failure" in record.error
+    assert provider.calls == 1
+    preserved = memory.load_episode(episode_input.episode_id)
+    assert preserved is not None
+    assert preserved.item_id == existing.item_id
+    assert memory.committed_episode_count == 1
+    preserved_ids = [
+        hit.item_id
+        for hit in memory.search("unique preserved history marker", k=5)
+    ]
+    assert preserved_ids == [existing.item_id]
+    assert "memory_commit" not in [
+        event.kind for event in log.replay(episode_input.episode_id)
+    ]
 
 
 def test_s1_one_model_call_fixed_prompt_and_zero_helper_calls():

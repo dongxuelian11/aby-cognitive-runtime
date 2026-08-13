@@ -12,7 +12,7 @@ ABY tests whether separating cognition into three heterogeneous lanes — **A** 
 | ----- | ------- | ------ |
 | P0 | Theory freeze V0.1 | Archived 2026-08-13 · ACCEPTED (15/15, independent exact-source review PASS) |
 | P1 baseline foundation | Experimental harness + S0/S1/S2 controls | P1.1–P1.4 accepted/merged |
-| PRE-P1.5 | Repo-native doctrine / architecture alignment | Current bounded focus |
+| PRE-P1.5 | Authority lock accepted; S1 publication atomicity hardening gate | Current bounded focus |
 | P1.5 | Shared Semantic Geometry Foundation | NOT_STARTED |
 | P2–P5 | (to be defined later) | — |
 
@@ -22,6 +22,9 @@ Status distinctions:
 P0 Theory Freeze V0.1:      ACCEPTED (authoritative P0 baseline)
 P0 scientific hypotheses:   UNVALIDATED / EXPERIMENTAL (H1–H6 untested)
 P1.1–P1.4 baseline set:      ACCEPTED / CLOSED
+PRE-P1.5 authority lock:      ACCEPTED
+PRE-P1.5 runtime hardening:   REQUIRED BEFORE P1.5
+P1.5 runtime implementation: NOT_STARTED
 P1 geodesic architecture:    EXPERIMENTAL HYPOTHESIS / NOT P0 AUTHORITY /
                              NOT SCIENTIFICALLY VALIDATED
 License:                    Apache-2.0
@@ -68,8 +71,9 @@ tests/                contract-level tests (test the freeze, not the implementat
 P1.3 S1 is an accepted controlled baseline: the single-LLM provider path plus
 fresh process-local committed memory and deterministic bounded keyword retrieval.
 Only runner-accepted `COMPLETED` episodes are published; failed, timed-out, and
-late-finishing workers cannot become retrievable. This is not the future ABY
-Commit Barrier.
+late-finishing workers cannot become retrievable. If finalization fails after a
+new S1 item is published, that exact new item is rolled back without deleting
+pre-existing idempotent memory. This is not the future ABY Commit Barrier.
 
 P1.4 S2 is an accepted conventional MoA control: three independent proposer calls in the
 default config, followed by exactly one aggregator call. P1.4 records truthful
